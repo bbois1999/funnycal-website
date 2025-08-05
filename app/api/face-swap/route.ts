@@ -78,7 +78,8 @@ export async function POST(request: NextRequest) {
       success: true,
       output_files: apiPaths,
       total_processed: result.total_processed,
-      template_folder: result.template_folder
+      template_folder: result.template_folder,
+      output_folder_id: path.basename(outputDir)
     });
 
   } catch (error) {

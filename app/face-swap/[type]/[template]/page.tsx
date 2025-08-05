@@ -100,6 +100,7 @@ export default function FaceSwapPage({
   const [isSwapping, setIsSwapping] = useState(false);
   const [swapResults, setSwapResults] = useState<string[]>([]);
   const [swapError, setSwapError] = useState<string | null>(null);
+  const [outputFolderId, setOutputFolderId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const productType = productData[params.type];
@@ -138,6 +139,36 @@ export default function FaceSwapPage({
     fileInputRef.current?.click();
   };
 
+  const addToCart = () => {
+    if (!outputFolderId) return;
+    
+    const cartItem = {
+      id: Date.now().toString(),
+      type: params.type,
+      template: params.template,
+      templateName: validTemplate.name,
+      price: validTemplate.price,
+      outputFolderId: outputFolderId,
+      imageCount: swapResults.length,
+      swapImages: swapResults.slice(0, 6), // Store first 6 face swap images for preview
+      templateImage: validTemplate.templateImages[0]
+    };
+
+    // Get existing cart from localStorage
+    const existingCart = JSON.parse(localStorage.getItem('funnycal-cart') || '[]');
+    existingCart.push(cartItem);
+    localStorage.setItem('funnycal-cart', JSON.stringify(existingCart));
+    
+    alert(`${validTemplate.name} added to cart!`);
+  };
+
+  const buyNow = () => {
+    if (!outputFolderId) return;
+    
+    addToCart();
+    window.location.href = '/cart';
+  };
+
   const handleSwapNow = async () => {
     if (!uploadedFile) {
       setSwapError("No file uploaded");
@@ -162,6 +193,10 @@ export default function FaceSwapPage({
 
       if (result.success) {
         setSwapResults(result.output_files || []);
+        // Extract folder ID from response data
+        if (result.output_folder_id) {
+          setOutputFolderId(result.output_folder_id);
+        }
       } else {
         setSwapError(result.error || 'Face swap failed');
       }
@@ -398,21 +433,30 @@ export default function FaceSwapPage({
 
                {/* Action Buttons */}
                <div className="text-center mt-8 space-y-4">
+                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                   <button
+                     onClick={buyNow}
+                     className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg font-bold text-lg transition-colors shadow-lg"
+                   >
+                     🛒 Buy Now - {validTemplate.price}
+                   </button>
+                   <button
+                     onClick={addToCart}
+                     className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg font-bold text-lg transition-colors shadow-lg"
+                   >
+                     ➕ Add to Cart & Keep Browsing
+                   </button>
+                 </div>
                  <button
                    onClick={() => {
                      setSwapResults([]);
+                     setOutputFolderId(null);
                      setShowSwapButton(true);
                    }}
-                   className="bg-purple-500 hover:bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors mr-4"
+                   className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
                  >
                    🔄 Try Another Photo
                  </button>
-                 <Link
-                   href={`/product/${params.type}/${params.template}`}
-                   className="inline-block bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
-                 >
-                   🛒 Order This Calendar
-                 </Link>
                </div>
              </div>
            )}
