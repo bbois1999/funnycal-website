@@ -94,8 +94,12 @@ export default function FaceSwapPage({
   params: { type: string; template: string } 
 }) {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showSwapButton, setShowSwapButton] = useState(false);
+  const [isSwapping, setIsSwapping] = useState(false);
+  const [swapResults, setSwapResults] = useState<string[]>([]);
+  const [swapError, setSwapError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const productType = productData[params.type];
@@ -112,11 +116,14 @@ export default function FaceSwapPage({
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
       setIsUploading(true);
+      setSwapResults([]);
+      setSwapError(null);
       
       const reader = new FileReader();
       reader.onload = (e) => {
         setTimeout(() => {
           setUploadedImage(e.target?.result as string);
+          setUploadedFile(file);
           setIsUploading(false);
           setTimeout(() => {
             setShowSwapButton(true);
@@ -131,9 +138,39 @@ export default function FaceSwapPage({
     fileInputRef.current?.click();
   };
 
-  const handleSwapNow = () => {
-    // This would integrate with your face swap API
-    alert("Face swap processing! This would integrate with your face swap service.");
+  const handleSwapNow = async () => {
+    if (!uploadedFile) {
+      setSwapError("No file uploaded");
+      return;
+    }
+
+    setIsSwapping(true);
+    setSwapError(null);
+    setSwapResults([]);
+
+    try {
+      const formData = new FormData();
+      formData.append('photo', uploadedFile);
+      formData.append('template', params.template);
+
+      const response = await fetch('/api/face-swap', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSwapResults(result.output_files || []);
+      } else {
+        setSwapError(result.error || 'Face swap failed');
+      }
+    } catch (error) {
+      console.error('Face swap error:', error);
+      setSwapError('Failed to process face swap. Please try again.');
+    } finally {
+      setIsSwapping(false);
+    }
   };
 
   return (
@@ -255,19 +292,130 @@ export default function FaceSwapPage({
                  )}
                </div>
 
-               {/* Swap Button */}
-               {showSwapButton && (
-                 <div className="mt-8 animate-bounce">
-                   <button
-                     onClick={handleSwapNow}
-                     className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 hover:from-purple-600 hover:via-pink-600 hover:to-red-600 text-white py-6 rounded-full text-3xl font-bold transition-all duration-500 transform hover:scale-105 shadow-2xl animate-pulse"
-                   >
-                     🎭 SWAP NOW! ✨
-                   </button>
-                 </div>
-               )}
+                             {/* Swap Button */}
+              {showSwapButton && !isSwapping && swapResults.length === 0 && (
+                <div className="mt-8 animate-bounce">
+                  <button
+                    onClick={handleSwapNow}
+                    disabled={isSwapping}
+                    className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 hover:from-purple-600 hover:via-pink-600 hover:to-red-600 text-white py-6 rounded-full text-3xl font-bold transition-all duration-500 transform hover:scale-105 shadow-2xl animate-pulse disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    🎭 SWAP NOW! ✨
+                  </button>
+                </div>
+              )}
+
+              {/* Processing State */}
+              {isSwapping && (
+                <div className="mt-8 text-center">
+                  <div className="bg-white rounded-lg shadow-xl p-8">
+                    <div className="animate-spin text-6xl mb-4">🎭</div>
+                    <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                      Creating Your Magic...
+                    </h3>
+                    <p className="text-gray-600">
+                      This may take a few moments while we swap your face onto all templates
+                    </p>
+                    <div className="mt-4 bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error Display */}
+              {swapError && (
+                <div className="mt-8">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                    <div className="text-4xl mb-4">❌</div>
+                    <h3 className="text-xl font-bold text-red-800 mb-2">
+                      Oops! Something went wrong
+                    </h3>
+                    <p className="text-red-600 mb-4">{swapError}</p>
+                    <button
+                      onClick={() => {
+                        setSwapError(null);
+                        setShowSwapButton(true);
+                      }}
+                      className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                </div>
+              )}
              </div>
            </div>
+
+           {/* Results Display */}
+           {swapResults.length > 0 && (
+             <div className="mb-16">
+               {/* Exciting Success Animation */}
+               <div className="text-center mb-12 animate-pulse">
+                 <div className="text-8xl mb-6 animate-bounce">🎉</div>
+                 <div className="text-6xl mb-4 animate-spin">✨</div>
+                 <h2 className="text-5xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent mb-6 animate-pulse">
+                   FACE SWAP COMPLETE!
+                 </h2>
+                 <div className="text-3xl mb-4">🎭 ⭐ 🔥 ⭐ 🎭</div>
+                 <p className="text-2xl text-gray-700 font-semibold mb-4">
+                   Your face has been magically swapped onto all {swapResults.length} templates!
+                 </p>
+                 <div className="text-xl text-gray-600 mb-8">
+                   Check out your hilarious {validTemplate.name} transformations below!
+                 </div>
+                 <div className="flex justify-center space-x-4 text-4xl animate-bounce">
+                   <span className="animate-pulse">🚀</span>
+                   <span className="animate-pulse delay-100">💫</span>
+                   <span className="animate-pulse delay-200">🎊</span>
+                   <span className="animate-pulse delay-300">🌟</span>
+                   <span className="animate-pulse delay-500">🎈</span>
+                 </div>
+               </div>
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                 {swapResults.map((imagePath, index) => (
+                   <div key={index} className="bg-white rounded-lg shadow-xl overflow-hidden transform hover:scale-105 transition-all duration-300">
+                     <div className="relative h-64">
+                       <Image
+                         src={imagePath}
+                         alt={`Face swap result ${index + 1}`}
+                         fill
+                         className="object-cover"
+                       />
+                       <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-sm font-bold">
+                         #{index + 1}
+                       </div>
+                     </div>
+                     <div className="p-4 text-center">
+                       <p className="text-gray-600 text-sm">
+                         Face Swap Result {index + 1}
+                       </p>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+
+               {/* Action Buttons */}
+               <div className="text-center mt-8 space-y-4">
+                 <button
+                   onClick={() => {
+                     setSwapResults([]);
+                     setShowSwapButton(true);
+                   }}
+                   className="bg-purple-500 hover:bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors mr-4"
+                 >
+                   🔄 Try Another Photo
+                 </button>
+                 <Link
+                   href={`/product/${params.type}/${params.template}`}
+                   className="inline-block bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
+                 >
+                   🛒 Order This Calendar
+                 </Link>
+               </div>
+             </div>
+           )}
 
            {/* Template & Example Side by Side - Bottom */}
            <div className="grid lg:grid-cols-2 gap-12">

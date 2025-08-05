@@ -1,0 +1,2 @@
+# Order JSON files will be stored here
+# Each order gets its own file named {order-id}.json
