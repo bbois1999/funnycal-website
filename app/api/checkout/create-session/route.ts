@@ -55,8 +55,6 @@ export async function POST(req: NextRequest) {
           currency: 'usd',
           product_data: {
             name: item.templateName,
-            // Optionally include an image if absolute URL is available
-            // images: item.swapImages && item.swapImages.length > 0 ? [new URL(item.swapImages[0], origin).toString()] : undefined,
           },
           unit_amount: unitAmount,
         },
@@ -66,7 +64,6 @@ export async function POST(req: NextRequest) {
 
     // Compact metadata (Stripe limits apply)
     const metadata: Record<string, string> = {
-      // Join folder IDs (one per cart item) using a pipe
       folders: items.map((i) => i.outputFolderId).join('|'),
       templates: items.map((i) => i.template).join('|'),
       names: items.map((i) => i.templateName).join('|'),
@@ -79,8 +76,8 @@ export async function POST(req: NextRequest) {
       cancel_url: `${origin}/checkout/cancel`,
       customer_email: customer?.email,
       metadata,
-      // Let Stripe collect shipping address if you want later:
-      // shipping_address_collection: { allowed_countries: ['US', 'CA'] },
+      shipping_address_collection: { allowed_countries: ['US'] },
+      phone_number_collection: { enabled: true },
     });
 
     return NextResponse.json({ url: session.url });

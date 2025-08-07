@@ -1,0 +1,24 @@
+{
+  "orderId": "cs_test_a10E8VJ7yDfvcVRdJYnnCacC4rC6zEqCC3edn8QDAGEox3DPM0u584T8jx",
+  "status": "placed",
+  "createdAt": "2025-08-07T22:36:05.000Z",
+  "customer": {
+    "name": "Brendan Rae Bois",
+    "email": "bbois1999@gmail.com",
+    "address": {
+      "city": "White Bear Lake",
+      "country": "US",
+      "line1": "3683 Cranbrook Drive",
+      "line2": null,
+      "postal_code": "55110",
+      "state": "MN"
+    }
+  },
+  "items": [
+    {
+      "templateName": "Meme Calendar",
+      "template": "memes",
+      "outputFolderId": "memes_1754606065633"
+    }
+  ]
+}
