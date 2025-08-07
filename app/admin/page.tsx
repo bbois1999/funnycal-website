@@ -1,15 +1,33 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+
+type Order = {
+  orderId: string;
+  status: 'placed' | 'new' | 'processing' | 'shipping' | 'complete';
+  createdAt: string;
+  updatedAt?: string;
+  customer?: { name?: string; email?: string; address?: any };
+  items?: { templateName: string; outputFolderId?: string }[];
+};
+
+const STATUS_LABELS: Record<Order['status'], string> = {
+  placed: 'new',
+  new: 'new',
+  processing: 'processing',
+  shipping: 'shipping',
+  complete: 'complete',
+};
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [password, setPassword] = useState('');
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ today: number; week: number; month: number }>({ today: 0, week: 0, month: 0 });
 
   useEffect(() => {
-    // naive client check for cookie
     const match = document.cookie.match(/fc_admin=1/);
     if (match) {
       setAuthed(true);
@@ -39,12 +57,44 @@ export default function AdminPage() {
     }
   }
 
+  function computeStats(list: Order[]) {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    let today = 0, week = 0, month = 0;
+    for (const o of list) {
+      const t = new Date(o.createdAt).getTime();
+      if (!isNaN(t)) {
+        if (t >= startOfToday.getTime()) today += 1;
+        if (t >= sevenDaysAgo.getTime()) week += 1;
+        if (t >= startOfMonth.getTime()) month += 1;
+      }
+    }
+    return { today, week, month };
+  }
+
   async function fetchOrders() {
     const res = await fetch('/api/admin/orders');
     if (res.ok) {
       const data = await res.json();
-      setOrders(data.orders || []);
+      const list: Order[] = (data.orders || []).map((o: any) => ({
+        ...o,
+        status: STATUS_LABELS[(o.status as any) || 'new'] as Order['status'],
+      }));
+      setOrders(list);
+      setStats(computeStats(list));
     }
+  }
+
+  function groupByStatus(list: Order[]) {
+    const groups: Record<Order['status'], Order[]> = { new: [], processing: [], shipping: [], complete: [], placed: [] as any } as any;
+    for (const o of list) {
+      const st = STATUS_LABELS[o.status] as Order['status'];
+      groups[st].push({ ...o, status: st });
+    }
+    return groups;
   }
 
   if (!authed) {
@@ -68,47 +118,56 @@ export default function AdminPage() {
     );
   }
 
+  const groups = groupByStatus(orders);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-orange-50 to-red-50 p-6">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Orders Dashboard</h1>
-        <div className="bg-white rounded-xl shadow p-6">
-          {orders.length === 0 ? (
-            <p className="text-gray-600">No orders yet.</p>
-          ) : (
-            <div className="space-y-4">
-              {orders.map((o) => (
-                <div key={o.orderId} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold">Order: {o.orderId}</div>
-                      <div className="text-sm text-gray-500">Placed: {new Date(o.createdAt).toLocaleString()}</div>
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">Orders Dashboard</h1>
+          <button onClick={fetchOrders} className="bg-white/80 hover:bg-white text-gray-800 px-4 py-2 rounded-lg shadow">Refresh</button>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-xl shadow p-4">
+            <div className="text-sm text-gray-500">Today</div>
+            <div className="text-3xl font-bold">{stats.today}</div>
+          </div>
+          <div className="bg-white rounded-xl shadow p-4">
+            <div className="text-sm text-gray-500">Last 7 Days</div>
+            <div className="text-3xl font-bold">{stats.week}</div>
+          </div>
+          <div className="bg-white rounded-xl shadow p-4">
+            <div className="text-sm text-gray-500">This Month</div>
+            <div className="text-3xl font-bold">{stats.month}</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {(['new', 'processing', 'shipping', 'complete'] as const).map((st) => (
+            <div key={st} className="bg-white rounded-xl shadow p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xl font-semibold capitalize">{st}</h2>
+                <span className="text-sm text-gray-500">{groups[st].length} orders</span>
+              </div>
+              <div className="space-y-3">
+                {groups[st].map((o) => (
+                  <div key={o.orderId} className="border rounded-lg p-3">
+                    <div className="text-sm text-gray-600">{new Date(o.createdAt).toLocaleString()}</div>
+                    <div className="font-semibold">{o.customer?.name || 'No name'} — {o.customer?.email || 'No email'}</div>
+                    <div className="mt-2 flex gap-2">
+                      <Link href={`/admin/orders/${o.orderId}`} className="bg-blue-500 hover:bg-blue-600 text-white text-sm rounded px-3 py-1">View</Link>
+                      <a className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm rounded px-3 py-1" href={`/api/admin/order-files?order=${o.orderId}`} target="_blank" rel="noreferrer">Download</a>
                     </div>
-                    <div className="text-sm text-gray-600">Status: {o.status}</div>
                   </div>
-                  <div className="mt-3 text-sm text-gray-700">
-                    <div><span className="font-semibold">Customer:</span> {o.customer?.name || 'N/A'} ({o.customer?.email || 'N/A'})</div>
-                    {o.customer?.address && (
-                      <div>
-                        <span className="font-semibold">Address:</span> {o.customer.address.line1}, {o.customer.address.city}, {o.customer.address.state} {o.customer.address.postal_code}
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-3">
-                    <div className="font-semibold mb-2">Items</div>
-                    <ul className="list-disc pl-5 text-sm">
-                      {o.items?.map((it: any, idx: number) => (
-                        <li key={idx}>Template: {it.templateName} — Folder: {it.outputFolderId}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="mt-3 text-sm">
-                    <a className="text-blue-600 underline" href={`/api/admin/order-files?order=${o.orderId}`} target="_blank" rel="noreferrer">Download order files (zip)</a>
-                  </div>
-                </div>
-              ))}
+                ))}
+                {groups[st].length === 0 && (
+                  <div className="text-sm text-gray-500">No orders</div>
+                )}
+              </div>
             </div>
-          )}
+          ))}
         </div>
       </div>
     </div>
