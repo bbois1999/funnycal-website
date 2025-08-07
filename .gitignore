@@ -54,6 +54,10 @@ faceswap/.venv/
 faceswap/uploads/
 faceswap/output/
 
+# Orders (copied assets and order JSON)
+faceswap/orders/
+data/orders/
+
 # General large file patterns
 *.onnx
 *.pth
