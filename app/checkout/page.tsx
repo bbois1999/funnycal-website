@@ -18,6 +18,7 @@ interface CartItem {
 export default function CheckoutPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     email: '',
@@ -52,27 +53,36 @@ export default function CheckoutPage() {
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const orderData = {
-      items: cartItems,
-      customer: customerInfo,
-      total: calculateTotal(),
-      orderDate: new Date().toISOString(),
-      orderId: 'FC' + Date.now()
-    };
+    if (cartItems.length === 0) return;
 
-    // Save order (in a real app, this would go to your backend)
-    console.log('Order submitted:', orderData);
-    
-    // Clear cart and checkout data
-    localStorage.removeItem('funnycal-cart');
-    localStorage.removeItem('funnycal-checkout');
-    
-    // Show success message
-    alert(`Order submitted successfully! Order ID: ${orderData.orderId}\n\nYour personalized calendars will be printed using the face swaps from your output folders and shipped to the provided address.`);
-    
-    // Redirect to home
-    window.location.href = '/';
+    try {
+      setIsSubmitting(true);
+
+      const res = await fetch('/api/checkout/create-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          items: cartItems,
+          customer: { email: customerInfo.email, name: customerInfo.name }
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        alert(data.error || 'Failed to start checkout.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
+    } catch (err) {
+      console.error(err);
+      alert('Failed to start checkout.');
+      setIsSubmitting(false);
+    }
   };
 
   if (isLoading) {
@@ -262,9 +272,10 @@ export default function CheckoutPage() {
                 <div className="pt-6">
                   <button
                     type="submit"
-                    className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg font-bold text-xl transition-colors shadow-lg"
+                    disabled={isSubmitting}
+                    className="w-full bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white py-4 rounded-lg font-bold text-xl transition-colors shadow-lg"
                   >
-                    🚀 Place Order - ${calculateTotal()}
+                    {isSubmitting ? 'Redirecting…' : `🚀 Place Order - $${calculateTotal()}`}
                   </button>
                 </div>
               </form>

@@ -50,6 +50,10 @@ faceswap/*.bin
 faceswap/models/
 faceswap/.venv/
 
+# User uploads and face swap results (contains customer photos)
+faceswap/uploads/
+faceswap/output/
+
 # General large file patterns
 *.onnx
 *.pth
