@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import CartButton from '../components/CartButton'
 
 export const metadata: Metadata = {
   title: 'FunnyCal LLC',
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <CartButton />
         {children}
         <footer className="bg-gray-800 text-white py-12 mt-20">
           <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-3 gap-6">
