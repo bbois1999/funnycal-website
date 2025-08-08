@@ -47,6 +47,42 @@ def read_image(path: str) -> np.ndarray:
     return img
 
 
+def add_padding_border(image: np.ndarray, pad_ratio: float = 0.15, border_type: int = cv2.BORDER_REPLICATE):
+    """Add a border around the image to make faces relatively smaller for detection.
+
+    Returns (padded_image, pads) where pads = (top, bottom, left, right).
+    """
+    h, w = image.shape[:2]
+    pad_x = max(1, int(w * pad_ratio))
+    pad_y = max(1, int(h * pad_ratio))
+    padded = cv2.copyMakeBorder(image, pad_y, pad_y, pad_x, pad_x, border_type)
+    return padded, (pad_y, pad_y, pad_x, pad_x)
+
+
+def detect_faces_with_border_retries(app: FaceAnalysis, image: np.ndarray, retry_pad_ratios = (0.15, 0.3)):
+    """Try detecting faces on the original image; if none, retry with padded borders.
+
+    Returns a tuple: (faces, context)
+    - faces: list from app.get(...)
+    - context: {
+        'used_padding': bool,
+        'padded_image': np.ndarray | None,
+        'pads': (top, bottom, left, right) | None
+      }
+    """
+    faces = app.get(image)
+    if faces:
+        return faces, { 'used_padding': False, 'padded_image': None, 'pads': None }
+
+    for ratio in retry_pad_ratios:
+        padded, pads = add_padding_border(image, ratio)
+        faces = app.get(padded)
+        if faces:
+            return faces, { 'used_padding': True, 'padded_image': padded, 'pads': pads }
+
+    return [], { 'used_padding': False, 'padded_image': None, 'pads': None }
+
+
 def add_watermark(image: np.ndarray, watermark_text: str = "FunnyCal - Preview") -> np.ndarray:
     """Add a repeating slanted watermark across the entire image."""
     watermarked = image.copy()
@@ -170,9 +206,9 @@ def process_face_swap(source_path: str, template_folder: str, output_folder: str
         # Load models
         app, swapper = load_models(ctx_id=ctx_id, det_size=det_size)
         
-        # Load and process source image
+        # Load and process source image with retries
         src_img = read_image(source_path)
-        src_faces = app.get(src_img)
+        src_faces, src_ctx = detect_faces_with_border_retries(app, src_img, retry_pad_ratios=(0.12, 0.25))
         
         if not src_faces:
             return {"success": False, "error": "No face detected in the source image. Please upload a clear photo with a visible face."}
@@ -192,16 +228,33 @@ def process_face_swap(source_path: str, template_folder: str, output_folder: str
             try:
                 # Load template image
                 tgt_img = read_image(str(template_file))
-                tgt_faces = app.get(tgt_img)
+
+                # Detect faces with retries (including padding)
+                tgt_faces, tgt_ctx = detect_faces_with_border_retries(app, tgt_img, retry_pad_ratios=(0.12, 0.25))
                 
                 if not tgt_faces:
                     print(f"Warning: No faces detected in template {template_file.name}, skipping...")
                     continue
                 
-                # Swap every detected face in the template image
-                result_img = tgt_img.copy()
-                for face in tgt_faces:
-                    result_img = swapper.get(result_img, face, src_face, paste_back=True)
+                # Swap depending on whether detection required padding
+                if not tgt_ctx['used_padding']:
+                    result_img = tgt_img.copy()
+                    for face in tgt_faces:
+                        result_img = swapper.get(result_img, face, src_face, paste_back=True)
+                else:
+                    # Perform swap on the padded image and crop back
+                    padded_img = tgt_ctx['padded_image']
+                    pads = tgt_ctx['pads']  # (top, bottom, left, right)
+                    pad_top, pad_bottom, pad_left, pad_right = pads
+                    h, w = tgt_img.shape[:2]
+
+                    result_padded = padded_img.copy()
+                    for face in tgt_faces:
+                        result_padded = swapper.get(result_padded, face, src_face, paste_back=True)
+                    # Crop back to original image region
+                    y1, y2 = pad_top, pad_top + h
+                    x1, x2 = pad_left, pad_left + w
+                    result_img = result_padded[y1:y2, x1:x2]
                 
                 # Save clean version (for potential purchase)
                 output_filename = f"swapped_{template_file.name}"
