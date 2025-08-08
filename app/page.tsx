@@ -79,6 +79,9 @@ const customGridImages: string[] = [
   "/template-images/baby/5MayBaby.png",
 ];
 
+// Repeat to get 5x the thumbnails to fill space
+const extendedCustomGridImages: string[] = Array.from({ length: 5 }).flatMap(() => customGridImages);
+
 export default function Home() {
   const [currentHeroImageIdx, setCurrentHeroImageIdx] = useState(0);
   const [currentSwappedImage, setCurrentSwappedImage] = useState(0);
@@ -204,7 +207,53 @@ export default function Home() {
                 return (
                   <div key={t.key} className="min-w-full">
                     <div className="bg-white">
-                      {t.key !== 'custom' ? (
+                      {t.key === 'custom' ? (
+                        <div className="relative w-full bg-gray-100 grid grid-cols-1 md:grid-cols-2 gap-0">
+                          {/* Templates mosaic */}
+                          <div className="relative p-2 md:p-3">
+                            <div className="absolute top-2 left-2 z-10 bg-white/90 text-gray-800 text-[10px] font-semibold px-1.5 py-0.5 rounded">Pick from any template</div>
+                            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-[3px] overflow-hidden">
+                              {extendedCustomGridImages.slice(0, customGridImages.length * 5).map((src, i) => (
+                                <div key={i} className="relative w-full aspect-square overflow-hidden rounded-[2px] bg-white/70">
+                                  <Image src={src} alt="Template" fill className="object-cover" />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          {/* Upload your own preview */}
+                          <div className="relative flex items-center justify-center p-3">
+                            <div className="absolute top-2 left-2 z-10 bg-white/90 text-gray-800 text-[10px] font-semibold px-1.5 py-0.5 rounded">Upload your photos</div>
+                            <div className="relative w-1/2 sm:w-2/3 md:w-1/2 max-w-sm aspect-[3/4] md:aspect-[4/5] rounded-xl overflow-hidden shadow bg-white">
+                              <Image src="/example-pics/colins-grampa-example.jpg" alt="Your photo" fill className="object-cover" />
+                            </div>
+                          </div>
+                        </div>
+                      ) : t.key === 'tshirts' ? (
+                        <div className="relative w-full md:h-[75vh] bg-gray-100 grid grid-cols-1 md:grid-cols-2">
+                          {/* Einstein T‑Shirt */}
+                          <div className="relative">
+                            <Image src="/shirt-poster-pic-examples/realPreviewImageNoTongue.png" alt="Einstein T‑Shirt backdrop" fill className="object-cover blur-2xl scale-110" />
+                            <div className="absolute inset-0 flex items-stretch justify-center">
+                              <div className="relative h-full w-full">
+                                <Image src="/shirt-poster-pic-examples/realPreviewImageNoTongue.png" alt="Einstein T‑Shirt" fill sizes="50vw" className="object-contain" />
+                              </div>
+                            </div>
+                            <div className="absolute inset-0 bg-black/15" />
+                            <div className="absolute top-2 left-2 bg-white/90 text-gray-800 text-xs font-semibold px-2 py-1 rounded">T‑Shirt</div>
+                          </div>
+                          {/* Gary face-swapped example */}
+                          <div className="relative">
+                            <Image src="/shirt-poster-pic-examples/exampleGary.png" alt="Gary Example backdrop" fill className="object-cover blur-2xl scale-110" />
+                            <div className="absolute inset-0 flex items-stretch justify-center">
+                              <div className="relative h-full w-full">
+                                <Image src="/shirt-poster-pic-examples/exampleGary.png" alt="Gary face-swapped example" fill sizes="50vw" className="object-contain" />
+                              </div>
+                            </div>
+                            <div className="absolute inset-0 bg-black/15" />
+                            <div className="absolute top-2 left-2 bg-white/90 text-gray-800 text-xs font-semibold px-2 py-1 rounded">Example</div>
+                          </div>
+                        </div>
+                      ) : (
                         <div className="relative w-full md:h-[75vh] bg-gray-100 grid grid-cols-1 md:grid-cols-2 aspect-[4/3] sm:aspect-[16/9] md:aspect-auto">
                           {/* Template half */}
                           <div className="relative">
@@ -227,27 +276,6 @@ export default function Home() {
                             </div>
                             <div className="absolute inset-0 bg-black/15" />
                             <div className="absolute top-2 left-2 bg-white/90 text-gray-800 text-xs font-semibold px-2 py-1 rounded">Example</div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="relative w-full md:h-[75vh] bg-gray-100 grid grid-cols-1 md:grid-cols-2 gap-0">
-                          {/* Templates mosaic */}
-                          <div className="relative p-2 md:p-3">
-                            <div className="absolute top-2 left-2 z-10 bg-white/90 text-gray-800 text-xs font-semibold px-2 py-1 rounded">Pick from any template</div>
-                            <div className="grid grid-cols-5 md:grid-cols-6 gap-1 md:gap-2 h-full overflow-hidden">
-                              {customGridImages.slice(0, 20).map((src, i) => (
-                                <div key={i} className="relative w-full aspect-square overflow-hidden rounded bg-white/70">
-                                  <Image src={src} alt="Template" fill className="object-cover" />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          {/* Upload your own preview */}
-                          <div className="relative flex items-center justify-center p-4">
-                            <div className="absolute top-2 left-2 z-10 bg-white/90 text-gray-800 text-xs font-semibold px-2 py-1 rounded">Upload your photos</div>
-                            <div className="relative w-2/3 sm:w-3/4 md:w-5/6 max-w-md aspect-[3/4] md:aspect-[4/5] rounded-xl overflow-hidden shadow-lg bg-white">
-                              <Image src="/example-pics/colins-grampa-example.jpg" alt="Your photo" fill className="object-cover" />
-                            </div>
                           </div>
                         </div>
                       )}
@@ -279,10 +307,10 @@ export default function Home() {
             <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Try our new Custom Calendar!</h3>
             <p className="text-gray-700 max-w-3xl mx-auto mb-6">Pick from any of our template images or upload images of your own to make your own funny calendar!</p>
           </div>
-          {/* 5x5 grid of sample templates */}
-          <div className="mx-auto max-w-[700px] grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-3 mb-6">
-            {customGridImages.slice(0, 25).map((src, idx) => (
-              <div key={idx} className="relative aspect-square overflow-hidden rounded-lg bg-white/70">
+          {/* Slightly larger tiny grid with 5x items */}
+          <div className="mx-auto max-w-5xl grid grid-cols-7 sm:grid-cols-11 md:grid-cols-15 lg:grid-cols-19 gap-[3px] mb-6">
+            {extendedCustomGridImages.slice(0, customGridImages.length * 5).map((src, idx) => (
+              <div key={idx} className="relative aspect-square overflow-hidden rounded-[2px] bg-white/70">
                 <Image src={src} alt="Template sample" fill className="object-cover" />
               </div>
             ))}
