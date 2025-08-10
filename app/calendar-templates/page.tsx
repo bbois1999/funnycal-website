@@ -149,6 +149,11 @@ export default function CalendarTemplates() {
               Select a template below, upload your photo, and see your face swap come to life instantly! 
               Create your personalized calendar in just a few clicks.
             </p>
+            <div className="mt-4">
+              <Link href="/custom-calendar" className="inline-block bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded font-semibold">
+                Or build a Custom Calendar →
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -192,7 +197,7 @@ export default function CalendarTemplates() {
                   </div>
                   
                                      <div className="flex gap-2">
-                     <Link
+                      <Link
                        href={`/product/calendar/${template.id}`}
                        className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-lg font-semibold transition-colors duration-300 text-center"
                      >
