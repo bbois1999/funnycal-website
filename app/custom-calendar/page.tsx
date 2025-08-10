@@ -35,6 +35,29 @@ export default function CustomCalendarBuilder() {
   const [validationErrors, setValidationErrors] = useState<Record<number, { kind: "face" | "template"; message: string }>>({});
   const [validationNotice, setValidationNotice] = useState<string | null>(null);
 
+  // Face photo for swapping
+  const faceFileInputRef = useRef<HTMLInputElement>(null);
+  const [faceFile, setFaceFile] = useState<File | null>(null);
+  const [facePreview, setFacePreview] = useState<string | null>(null);
+
+  // Swap state/results
+  const [isSwapping, setIsSwapping] = useState(false);
+  const [swapResults, setSwapResults] = useState<string[]>([]);
+  const [swapError, setSwapError] = useState<string | null>(null);
+  const [outputFolderId, setOutputFolderId] = useState<string | null>(null);
+  const [showResultsReveal, setShowResultsReveal] = useState(false);
+
+  const backToSelections = () => {
+    setSwapResults([]);
+    setOutputFolderId(null);
+    setShowResultsReveal(false);
+    setIsSwapping(false);
+    setIsComplete(false);
+    setWizardStep("chooseTemplate");
+    setCurrentMonthIdx(0);
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+  };
+
   const chooseTemplate = (templateKey: string) => {
     setWorkingSelectedTemplateKey(templateKey);
     setWizardStep("chooseImage");
@@ -152,17 +175,75 @@ export default function CustomCalendarBuilder() {
   };
 
   const handleContinueToFaceSwap = async () => {
-    if (!allChosen) return;
-    setIsValidating(true);
-    setValidationNotice(null);
-    setValidationErrors({});
-    // Placeholder: integrate server-side validation here
-    setTimeout(() => {
+    if (!allChosen || !faceFile) return;
+    try {
+      setIsValidating(true);
+      setSwapError(null);
+      setSwapResults([]);
+
+      const monthsPayload = selections.map((s) => ({
+        path: s.source === 'template' && typeof s.imageSrc === 'string' && !s.imageSrc.startsWith('data:') ? s.imageSrc : undefined,
+        dataUrl: s.source === 'upload' ? (s.imageSrc as string) : undefined,
+      }));
+
+      const form = new FormData();
+      form.append('photo', faceFile);
+      form.append('months', JSON.stringify(monthsPayload));
+
+      setIsSwapping(true);
+      setShowResultsReveal(false);
+      const response = await fetch('/api/custom-face-swap', { method: 'POST', body: form });
+      const result = await response.json();
+      if (result.success) {
+        setSwapResults(result.output_files || []);
+        if (result.output_folder_id) setOutputFolderId(result.output_folder_id);
+        // Reveal results and scroll to top
+        setTimeout(() => setShowResultsReveal(true), 50);
+        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+      } else {
+        setSwapError(result.error || 'Face swap failed');
+      }
+    } catch (e) {
+      setSwapError('Failed to process face swap. Please try again.');
+    } finally {
+      setIsSwapping(false);
       setIsValidating(false);
-      setValidationNotice(
-        "We will validate your images during the face swap step and notify you if any month needs changes."
-      );
-    }, 600);
+    }
+  };
+
+  const addToCart = () => {
+    if (!outputFolderId) return;
+    const price = `$${productData.calendar.basePrice.toFixed(2)}`;
+    const cartItem = {
+      id: Date.now().toString(),
+      type: 'calendar',
+      template: 'custom',
+      templateName: 'Custom Calendar',
+      price,
+      outputFolderId: outputFolderId,
+      imageCount: swapResults.length,
+      swapImages: swapResults.slice(0, 6),
+      templateImage: selections[0]?.imageSrc || undefined,
+    };
+    const existingCart = JSON.parse(localStorage.getItem('funnycal-cart') || '[]');
+    existingCart.push(cartItem);
+    localStorage.setItem('funnycal-cart', JSON.stringify(existingCart));
+    alert('Custom Calendar added to cart!');
+  };
+
+  const buyNow = () => {
+    addToCart();
+    window.location.href = '/cart';
+  };
+
+  const handleFaceUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    setFaceFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setFacePreview(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -391,40 +472,94 @@ export default function CustomCalendarBuilder() {
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow p-8 text-center">
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Nice! Your custom calendar is ready</h2>
-              <p className="text-gray-600 mb-6">We can now run face swap across your chosen scenes.</p>
-              <button
-                disabled={!allChosen}
-                onClick={handleContinueToFaceSwap}
-                className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded font-bold disabled:opacity-60"
-              >
-                Continue to Face Swap
-              </button>
-              {isValidating && (
-                <div className="mt-3 text-sm text-gray-600">Validating images…</div>
+              {/* Results reveal at the top */
+              }
+              {swapResults.length > 0 && (
+                <div className={`transition-opacity duration-700 ${showResultsReveal ? 'opacity-100' : 'opacity-0'}`}>
+                  <div className="text-center mb-6">
+                    <div className="text-6xl mb-2">🎉</div>
+                    <h2 className="text-3xl font-extrabold text-gray-800 mb-1">Yay! Your swaps are ready</h2>
+                    <p className="text-gray-600">Check out your 12-month transformation below</p>
+                  </div>
+                  <div className="mb-5 flex items-center justify-center gap-3">
+                    <button onClick={backToSelections} className="px-5 py-2 rounded bg-white border hover:bg-gray-50 text-gray-800 font-semibold">← Back to selections</button>
+                    <button onClick={addToCart} className="px-5 py-2 rounded bg-orange-600 hover:bg-orange-700 text-white font-bold">Add to Cart</button>
+                    <button onClick={buyNow} className="px-5 py-2 rounded bg-green-600 hover:bg-green-700 text-white font-bold">Buy Now</button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-8">
+                    {swapResults.map((src: string) => (
+                      <div key={src} className="relative w-full aspect-[3/4] bg-gray-100 rounded overflow-hidden shadow">
+                        <Image src={src} alt="result" fill className="object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
-              {validationNotice && (
+
+              {/* Face photo upload and action buttons are hidden once results exist */}
+              {swapResults.length === 0 && (
+                <>
+                  <div className="max-w-md mx-auto mb-6">
+                    <div className="text-left mb-2 font-semibold text-gray-800">Upload your face photo</div>
+                    <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-4 bg-white">
+                      <input ref={faceFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFaceUploadChange} />
+                      {!facePreview ? (
+                        <button onClick={() => faceFileInputRef.current?.click()} className="w-full py-3 rounded bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold">
+                          Choose face photo
+                        </button>
+                      ) : (
+                        <div className="relative h-56">
+                          <img src={facePreview} alt="Face" className="w-full h-full object-cover rounded" />
+                          <button onClick={() => faceFileInputRef.current?.click()} className="absolute bottom-2 right-2 px-3 py-1 rounded bg-white/90 border text-sm">
+                            Change
+                          </button>
+                        </div>
+                      )}
+                      <div className="mt-2 text-xs text-gray-600">Tip: 1000×1000px+ square, clear face looking at camera.</div>
+                    </div>
+                  </div>
+                  {!isSwapping && (
+                    <button
+                      disabled={!allChosen || !faceFile}
+                      onClick={handleContinueToFaceSwap}
+                      className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded font-bold disabled:opacity-60"
+                    >
+                      Continue to Face Swap
+                    </button>
+                  )}
+                </>
+              )}
+              {isSwapping && swapResults.length === 0 && (
+                <div className="mt-2">
+                  <div className="inline-flex items-center gap-2 bg-black text-white px-4 py-2 rounded-full">
+                    <span className="animate-pulse">✨</span>
+                    <span className="font-semibold">Swapping!</span>
+                  </div>
+                </div>
+              )}
+              {validationNotice && swapResults.length === 0 && (
                 <div className="mt-3 text-sm text-gray-700">{validationNotice}</div>
               )}
-              <div className="mt-6 grid grid-cols-6 gap-2">
-                {selections.map((s, idx) => (
-                  <div key={idx} className="relative aspect-square rounded overflow-hidden bg-gray-100">
-                    {s.imageSrc ? (
-                      s.imageSrc.startsWith("data:") ? (
-                        <img src={s.imageSrc} alt={CALENDAR_MONTHS[idx]} className="w-full h-full object-cover" />
+              {!isSwapping && swapResults.length === 0 && (
+                <div className="mt-6 grid grid-cols-6 gap-2 transition-opacity duration-300">
+                  {selections.map((s, idx) => (
+                    <div key={idx} className="relative aspect-square rounded overflow-hidden bg-gray-100">
+                      {s.imageSrc ? (
+                        s.imageSrc.startsWith("data:") ? (
+                          <img src={s.imageSrc} alt={CALENDAR_MONTHS[idx]} className="w-full h-full object-cover" />
+                        ) : (
+                          <Image src={s.imageSrc} alt={CALENDAR_MONTHS[idx]} fill className="object-cover" />
+                        )
                       ) : (
-                        <Image src={s.imageSrc} alt={CALENDAR_MONTHS[idx]} fill className="object-cover" />
-                      )
-                    ) : (
-                      <div className="absolute inset-0 grid place-items-center text-gray-400 text-xs">{CALENDAR_MONTHS[idx].slice(0,3)}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                        <div className="absolute inset-0 grid place-items-center text-gray-400 text-xs">{CALENDAR_MONTHS[idx].slice(0,3)}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Bottom buttons removed since actions are now above results */}
               <div className="mt-6">
-                <button onClick={() => requestMonthChange(11)} className="text-sm text-gray-600 hover:underline">
-                  Go back to December
-                </button>
+                <button onClick={() => requestMonthChange(11)} className="text-sm text-gray-600 hover:underline">Go back to December</button>
               </div>
             </div>
           )}

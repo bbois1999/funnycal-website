@@ -1,6 +1,6 @@
 {
   "orderId": "cs_test_a10E8VJ7yDfvcVRdJYnnCacC4rC6zEqCC3edn8QDAGEox3DPM0u584T8jx",
-  "status": "placed",
+  "status": "complete",
   "createdAt": "2025-08-07T22:36:05.000Z",
   "customer": {
     "name": "Brendan Rae Bois",
@@ -20,5 +20,6 @@
       "template": "memes",
       "outputFolderId": "memes_1754606065633"
     }
-  ]
+  ],
+  "updatedAt": "2025-08-10T19:22:05.902Z"
 }
