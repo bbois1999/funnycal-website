@@ -211,7 +211,23 @@ def process_face_swap(source_path: str, template_folder: str, output_folder: str
         src_faces, src_ctx = detect_faces_with_border_retries(app, src_img, retry_pad_ratios=(0.12, 0.25))
         
         if not src_faces:
-            return {"success": False, "error": "No face detected in the source image. Please upload a clear photo with a visible face."}
+            # Return structured failure for source face
+            report = {
+                "success": False,
+                "error": "No face detected in the source image. Please upload a clear photo with a visible face.",
+                "failures": [{
+                    "file": "source",
+                    "reason": "no_face_detected",
+                    "message": "No face detected in your face photo. Please upload a clear, forward-facing face photo."
+                }]
+            }
+            try:
+                report_path = Path(output_folder) / "report.json"
+                with open(report_path, 'w', encoding='utf-8') as f:
+                    json.dump(report, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"Warning: could not write report.json for source failure: {e}")
+            return report
         
         # Choose the largest face as source
         src_face = max(src_faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
@@ -219,6 +235,7 @@ def process_face_swap(source_path: str, template_folder: str, output_folder: str
         # Process all template images
         output_files = []
         watermarked_files = []
+        failures = []  # collect files that failed with reason
         template_files = list(template_dir.glob("*.png")) + list(template_dir.glob("*.jpg")) + list(template_dir.glob("*.jpeg"))
         
         if not template_files:
@@ -234,6 +251,11 @@ def process_face_swap(source_path: str, template_folder: str, output_folder: str
                 
                 if not tgt_faces:
                     print(f"Warning: No faces detected in template {template_file.name}, skipping...")
+                    failures.append({
+                        "file": template_file.name,
+                        "reason": "no_face_detected",
+                        "message": "No face detected in this scene. Please choose a different picture with a clear, forward-facing face.",
+                    })
                     continue
                 
                 # Swap depending on whether detection required padding
@@ -279,17 +301,40 @@ def process_face_swap(source_path: str, template_folder: str, output_folder: str
                     
             except Exception as e:
                 print(f"Error processing template {template_file.name}: {e}")
+                failures.append({
+                    "file": template_file.name,
+                    "reason": "processing_error",
+                    "message": f"Failed to process this scene: {str(e)}",
+                })
                 continue
         
+        # Write a detailed JSON report regardless of success/failure counts
+        try:
+            report = {
+                "success": len(output_files) > 0,
+                "total_processed": len(output_files),
+                "total_failed": len(failures),
+                "processed_files": [Path(p).name for p in output_files],
+                "watermarked_files": [Path(p).name for p in watermarked_files],
+                "failures": failures,
+                "template_folder": template_folder,
+            }
+            report_path = output_dir / "report.json"
+            with open(report_path, 'w', encoding='utf-8') as f:
+                json.dump(report, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Warning: could not write report.json: {e}")
+
         if not output_files:
-            return {"success": False, "error": "No template images could be processed successfully"}
+            return {"success": False, "error": "No template images could be processed successfully", "failures": failures}
         
         return {
             "success": True, 
             "output_files": output_files,
             "watermarked_files": watermarked_files,
             "total_processed": len(output_files),
-            "template_folder": template_folder
+            "template_folder": template_folder,
+            "failures": failures
         }
         
     except Exception as e:

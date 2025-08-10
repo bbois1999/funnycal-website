@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { CALENDAR_MONTHS, productData, type Template } from "@/lib/products";
 
 type MonthSelection = {
@@ -44,8 +44,12 @@ export default function CustomCalendarBuilder() {
   const [isSwapping, setIsSwapping] = useState(false);
   const [swapResults, setSwapResults] = useState<string[]>([]);
   const [swapError, setSwapError] = useState<string | null>(null);
+  const [swapFailures, setSwapFailures] = useState<Array<{ file: string; reason: string; message: string }>>([]);
   const [outputFolderId, setOutputFolderId] = useState<string | null>(null);
   const [showResultsReveal, setShowResultsReveal] = useState(false);
+  const [isFixingFailures, setIsFixingFailures] = useState(false);
+  const [fixQueue, setFixQueue] = useState<number[]>([]);
+  const [fixPointer, setFixPointer] = useState(0);
 
   const backToSelections = () => {
     setSwapResults([]);
@@ -56,6 +60,48 @@ export default function CustomCalendarBuilder() {
     setWizardStep("chooseTemplate");
     setCurrentMonthIdx(0);
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+  };
+
+  const monthIndexFromFailureFile = (file: string): number | null => {
+    const m = file.match(/^(\d+)/);
+    if (!m) return null;
+    const idx = parseInt(m[1], 10) - 1;
+    if (idx < 0 || idx > 11) return null;
+    return idx;
+  };
+
+  const failedMonthIndices = useMemo(() => {
+    const set = new Set<number>();
+    for (const f of swapFailures) {
+      const idx = monthIndexFromFailureFile(f.file);
+      if (idx != null) set.add(idx);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [swapFailures]);
+
+  const formatMonthList = (indices: number[]): string => {
+    const names = indices.map((i) => CALENDAR_MONTHS[i]);
+    if (names.length === 0) return '';
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]} and ${names[1]}`;
+    return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+  };
+
+  const startFixFailures = () => {
+    if (failedMonthIndices.length === 0) return;
+    setIsFixingFailures(true);
+    setFixQueue(failedMonthIndices);
+    setFixPointer(0);
+    const first = failedMonthIndices[0];
+    const sel = selections[first];
+    setIsComplete(false);
+    setCurrentMonthIdx(first);
+    setWorkingSelectedTemplateKey(sel.templateKey);
+    setWorkingSelectedImage(sel.imageSrc);
+    setWorkingSource(sel.source);
+    setWizardStep("confirm");
+    setShowResultsReveal(false);
+    setSwapResults([]);
   };
 
   const chooseTemplate = (templateKey: string) => {
@@ -100,15 +146,32 @@ export default function CustomCalendarBuilder() {
     });
 
     // advance to next month or finish
-    if (currentMonthIdx < 11) {
-      const nextIdx = currentMonthIdx + 1;
-      setWorkingSelectedTemplateKey(null);
-      setWorkingSelectedImage(null);
-      setWorkingSource(null);
-      setWizardStep("chooseTemplate");
-      setCurrentMonthIdx(nextIdx);
+    if (isFixingFailures && fixQueue.length > 0) {
+      const nextPtr = fixPointer + 1;
+      if (nextPtr < fixQueue.length) {
+        setFixPointer(nextPtr);
+        const nextIdx = fixQueue[nextPtr];
+        setWorkingSelectedTemplateKey(null);
+        setWorkingSelectedImage(null);
+        setWorkingSource(null);
+        setWizardStep("chooseTemplate");
+        setCurrentMonthIdx(nextIdx);
+      } else {
+        // Finished fixing; go to results stage again
+        setIsFixingFailures(false);
+        setIsComplete(true);
+      }
     } else {
-      setIsComplete(true);
+      if (currentMonthIdx < 11) {
+        const nextIdx = currentMonthIdx + 1;
+        setWorkingSelectedTemplateKey(null);
+        setWorkingSelectedImage(null);
+        setWorkingSource(null);
+        setWizardStep("chooseTemplate");
+        setCurrentMonthIdx(nextIdx);
+      } else {
+        setIsComplete(true);
+      }
     }
   };
 
@@ -197,11 +260,20 @@ export default function CustomCalendarBuilder() {
       if (result.success) {
         setSwapResults(result.output_files || []);
         if (result.output_folder_id) setOutputFolderId(result.output_folder_id);
+        setSwapFailures(result.failures || []);
         // Reveal results and scroll to top
         setTimeout(() => setShowResultsReveal(true), 50);
         try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
       } else {
-        setSwapError(result.error || 'Face swap failed');
+        setSwapError(result.error || 'Some pictures failed to process');
+        setSwapFailures(result.failures || []);
+        // Even if not success, if we have partial results, show them along with failures
+        if (Array.isArray(result.output_files) && result.output_files.length > 0) {
+          setSwapResults(result.output_files);
+          if (result.output_folder_id) setOutputFolderId(result.output_folder_id);
+          setTimeout(() => setShowResultsReveal(true), 50);
+          try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+        }
       }
     } catch (e) {
       setSwapError('Failed to process face swap. Please try again.');
@@ -446,6 +518,18 @@ export default function CustomCalendarBuilder() {
                         Go back
                       </button>
                       <button
+                        onClick={() => {
+                          // Jump to template selection to change this month
+                          setWorkingSelectedTemplateKey(null);
+                          setWorkingSelectedImage(null);
+                          setWorkingSource(null);
+                          setWizardStep("chooseTemplate");
+                        }}
+                        className="px-5 py-2 rounded bg-white border hover:bg-gray-50 text-gray-800 font-semibold"
+                      >
+                        Change picture
+                      </button>
+                      <button
                         onClick={confirmSelection}
                         className="px-6 py-2 rounded bg-orange-600 hover:bg-orange-700 text-white font-bold"
                       >
@@ -481,10 +565,22 @@ export default function CustomCalendarBuilder() {
                     <h2 className="text-3xl font-extrabold text-gray-800 mb-1">Yay! Your swaps are ready</h2>
                     <p className="text-gray-600">Check out your 12-month transformation below</p>
                   </div>
+                  {swapFailures.length > 0 && (
+                    <div className="max-w-3xl mx-auto mb-6">
+                      <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
+                        <div className="font-semibold text-amber-800 mb-1">Some pictures failed</div>
+                        <p className="text-sm text-amber-800 mb-3">A few scenes couldn’t detect a clear face. Please replace {formatMonthList(failedMonthIndices)} with images that have a clear, forward-facing face.</p>
+                        <div className="mt-3 flex items-center gap-2">
+                          <button onClick={startFixFailures} className="px-3 py-1.5 rounded bg-white border text-gray-800 text-sm font-semibold hover:bg-gray-50">Fix months now</button>
+                          <button onClick={backToSelections} className="px-3 py-1.5 rounded bg-white border text-gray-800 text-sm font-semibold hover:bg-gray-50">Edit selections</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="mb-5 flex items-center justify-center gap-3">
                     <button onClick={backToSelections} className="px-5 py-2 rounded bg-white border hover:bg-gray-50 text-gray-800 font-semibold">← Back to selections</button>
-                    <button onClick={addToCart} className="px-5 py-2 rounded bg-orange-600 hover:bg-orange-700 text-white font-bold">Add to Cart</button>
-                    <button onClick={buyNow} className="px-5 py-2 rounded bg-green-600 hover:bg-green-700 text-white font-bold">Buy Now</button>
+                    <button onClick={addToCart} disabled={failedMonthIndices.length>0} className={`px-5 py-2 rounded font-bold ${failedMonthIndices.length>0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700 text-white'}`}>Add to Cart</button>
+                    <button onClick={buyNow} disabled={failedMonthIndices.length>0} className={`px-5 py-2 rounded font-bold ${failedMonthIndices.length>0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}`}>Buy Now</button>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-8">
                     {swapResults.map((src: string) => (
@@ -540,10 +636,10 @@ export default function CustomCalendarBuilder() {
               {validationNotice && swapResults.length === 0 && (
                 <div className="mt-3 text-sm text-gray-700">{validationNotice}</div>
               )}
-              {!isSwapping && swapResults.length === 0 && (
+              {!isSwapping && (
                 <div className="mt-6 grid grid-cols-6 gap-2 transition-opacity duration-300">
                   {selections.map((s, idx) => (
-                    <div key={idx} className="relative aspect-square rounded overflow-hidden bg-gray-100">
+                    <div key={idx} className={`relative aspect-square rounded overflow-hidden bg-gray-100 ${failedMonthIndices.includes(idx) ? 'ring-2 ring-red-500' : ''}`}>
                       {s.imageSrc ? (
                         s.imageSrc.startsWith("data:") ? (
                           <img src={s.imageSrc} alt={CALENDAR_MONTHS[idx]} className="w-full h-full object-cover" />
@@ -552,6 +648,11 @@ export default function CustomCalendarBuilder() {
                         )
                       ) : (
                         <div className="absolute inset-0 grid place-items-center text-gray-400 text-xs">{CALENDAR_MONTHS[idx].slice(0,3)}</div>
+                      )}
+                      {failedMonthIndices.includes(idx) && (
+                        <div className="absolute bottom-1 left-1 right-1 bg-red-600/90 text-white text-[10px] font-bold px-1 py-0.5 rounded">
+                          Needs change
+                        </div>
                       )}
                     </div>
                   ))}

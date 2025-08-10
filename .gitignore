@@ -53,6 +53,7 @@ faceswap/.venv/
 # User uploads and face swap results (contains customer photos)
 faceswap/uploads/
 faceswap/output/
+faceswap/template-images/custom/
 
 # Orders (copied assets and order JSON)
 faceswap/orders/
