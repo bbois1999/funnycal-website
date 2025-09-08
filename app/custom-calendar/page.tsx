@@ -301,7 +301,7 @@ export default function CustomCalendarBuilder() {
     const existingCart = JSON.parse(localStorage.getItem('funnycal-cart') || '[]');
     existingCart.push(cartItem);
     localStorage.setItem('funnycal-cart', JSON.stringify(existingCart));
-    alert('Custom Calendar added to cart!');
+    // Item will be reflected in cart count - no alert needed
   };
 
   const buyNow = () => {

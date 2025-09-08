@@ -161,7 +161,7 @@ export default function FaceSwapPage({
     existingCart.push(cartItem);
     localStorage.setItem('funnycal-cart', JSON.stringify(existingCart));
     
-    alert(`${validTemplate.name} added to cart!`);
+    // Item will be reflected in cart count - no alert needed
   };
 
   const buyNow = () => {
@@ -214,8 +214,11 @@ export default function FaceSwapPage({
           }
         }, 300); // Small delay to show 100% completion
       } else {
-        setSwapError(result.error || 'Face swap failed');
         setSwapFailures(result.failures || []);
+        // Only show generic error if no specific failures are provided
+        if (!result.failures || result.failures.length === 0) {
+          setSwapError(result.error || 'Face swap failed');
+        }
       }
     } catch (error) {
       console.error('Face swap error:', error);
@@ -423,8 +426,8 @@ export default function FaceSwapPage({
                 </div>
               )}
 
-              {/* Error Display */}
-              {swapError && (
+              {/* Error Display - Only show generic error if no specific failures */}
+              {swapError && swapFailures.length === 0 && (
                 <div className="mt-8">
                   <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
                     <div className="text-4xl mb-4">❌</div>
@@ -484,6 +487,7 @@ export default function FaceSwapPage({
                       <button
                         onClick={() => {
                           setSwapFailures([]);
+                          setSwapError(null);
                           setShowSwapButton(true);
                         }}
                         className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
@@ -542,6 +546,8 @@ export default function FaceSwapPage({
                  <button
                    onClick={() => {
                      setSwapResults([]);
+                     setSwapFailures([]);
+                     setSwapError(null);
                      setOutputFolderId(null);
                      setShowSwapButton(true);
                    }}
