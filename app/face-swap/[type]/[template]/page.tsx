@@ -103,6 +103,8 @@ export default function FaceSwapPage({
   const [swapError, setSwapError] = useState<string | null>(null);
   const [swapFailures, setSwapFailures] = useState<Array<{ file: string; reason: string; message: string }>>([]);
   const [outputFolderId, setOutputFolderId] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [hideUploadedImage, setHideUploadedImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const productType = productData[params.type];
@@ -206,12 +208,17 @@ export default function FaceSwapPage({
       if (result.success) {
         setSwapProgress(100); // Complete the progress
         setTimeout(() => {
-          setSwapResults(result.output_files || []);
-          setSwapFailures(result.failures || []);
-          // Extract folder ID from response data
-          if (result.output_folder_id) {
-            setOutputFolderId(result.output_folder_id);
-          }
+          // First, fade out the uploaded image
+          setHideUploadedImage(true);
+          setTimeout(() => {
+            // Then set results and show success message with fade in
+            setSwapResults(result.output_files || []);
+            setSwapFailures(result.failures || []);
+            if (result.output_folder_id) {
+              setOutputFolderId(result.output_folder_id);
+            }
+            setShowSuccess(true);
+          }, 300); // Wait for image fade out
         }, 300); // Small delay to show 100% completion
       } else {
         setSwapFailures(result.failures || []);
@@ -236,9 +243,9 @@ export default function FaceSwapPage({
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-orange-50 to-red-50">
       {/* Header */}
       <header className="bg-white shadow-lg">
-        <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="max-w-6xl mx-auto px-4 py-4 md:py-6">
           <div className="flex items-center justify-between">
-            <Link href="/" className="text-3xl font-bold text-gray-800">
+            <Link href="/" className="text-2xl md:text-3xl font-bold text-gray-800">
               Funny<span className="text-orange-500">Cal</span>
             </Link>
             <nav className="hidden md:flex space-x-6">
@@ -276,25 +283,25 @@ export default function FaceSwapPage({
       </section>
 
       {/* Main Content */}
-      <section className="py-12 px-4">
+      <section className="py-6 md:py-12 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-5xl font-bold text-gray-800 mb-4">
+          <div className="text-center mb-8 md:mb-12">
+            <h1 className="text-3xl md:text-5xl font-bold text-gray-800 mb-4">
               🎭 Face Swap Magic
             </h1>
-            <p className="text-xl text-gray-600 mb-2">
+            <p className="text-lg md:text-xl text-gray-600 mb-2">
               Create your personalized <span className="font-bold text-orange-600">{validTemplate.name}</span>
             </p>
-            <p className="text-lg text-gray-500">
+            <p className="text-base md:text-lg text-gray-500">
               Upload your photo and see the magic happen instantly!
             </p>
           </div>
 
                      {/* Upload Section - Top */}
-           <div className="max-w-2xl mx-auto mb-16">
+           <div className="max-w-2xl mx-auto mb-8 md:mb-16">
              <div className="text-center">
-               <h2 className="text-3xl font-bold text-gray-800 mb-6">Upload Your Photo</h2>
+               <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4 md:mb-6">Upload Your Photo</h2>
                
                {/* Upload Area */}
                <div className="relative">
@@ -319,13 +326,13 @@ export default function FaceSwapPage({
                        <p className="text-gray-600 mb-6 text-lg">
                          Upload a clear photo of your face for the best results
                        </p>
-                       <button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-10 py-4 rounded-full font-bold text-xl transition-all duration-300 transform hover:scale-105 shadow-lg">
+                       <button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-10 py-4 rounded-full font-bold text-xl transition-all duration-300 transform hover:scale-105 shadow-lg active:scale-95">
                          📷 Upload Photo
                        </button>
                      </div>
                    </div>
                  ) : (
-                   <div className="bg-white rounded-lg shadow-xl overflow-hidden max-w-md mx-auto">
+                   <div className={`bg-white rounded-lg shadow-xl overflow-hidden max-w-md mx-auto transition-opacity duration-300 ${hideUploadedImage ? 'opacity-0' : 'opacity-100'}`}>
                      <div className="relative h-80">
                        <Image
                          src={uploadedImage}
@@ -342,8 +349,8 @@ export default function FaceSwapPage({
 
                  {/* Success Message - Positioned Above Chosen Face */}
                  {swapResults.length > 0 && (
-                   <div className="mt-8 text-center animate-pulse">
-                     <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 shadow-lg">
+                   <div className={`mt-8 text-center transition-opacity duration-500 ${showSuccess ? 'opacity-100' : 'opacity-0'}`}>
+                     <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4 md:p-6 shadow-lg">
                        <div className="text-6xl mb-4 animate-bounce">🎉</div>
                        <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent mb-4">
                          FACE SWAP COMPLETE!
@@ -383,7 +390,7 @@ export default function FaceSwapPage({
                   <button
                     onClick={handleSwapNow}
                     disabled={isSwapping}
-                    className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 hover:from-purple-600 hover:via-pink-600 hover:to-red-600 text-white py-6 rounded-full text-3xl font-bold transition-all duration-500 transform hover:scale-105 shadow-2xl animate-pulse disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 hover:from-purple-600 hover:via-pink-600 hover:to-red-600 text-white py-6 rounded-full text-3xl font-bold transition-all duration-500 transform hover:scale-105 active:scale-95 shadow-2xl animate-pulse disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     🎭 SWAP NOW! ✨
                   </button>
@@ -440,7 +447,7 @@ export default function FaceSwapPage({
                         setSwapError(null);
                         setShowSwapButton(true);
                       }}
-                      className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                      className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95"
                     >
                       Try Again
                     </button>
@@ -490,7 +497,7 @@ export default function FaceSwapPage({
                           setSwapError(null);
                           setShowSwapButton(true);
                         }}
-                        className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                        className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95"
                       >
                         Try Different Photo
                       </button>
@@ -504,22 +511,22 @@ export default function FaceSwapPage({
            {/* Results Display */}
            {swapResults.length > 0 && (
              <div className="mb-16">
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                  {swapResults.map((imagePath, index) => (
                    <div key={index} className="bg-white rounded-lg shadow-xl overflow-hidden transform hover:scale-105 transition-all duration-300">
-                     <div className="relative h-64">
+                     <div className="relative w-full aspect-[3/4]">
                        <Image
                          src={imagePath}
                          alt={`Face swap result ${index + 1}`}
                          fill
-                         className="object-cover"
+                         className="object-contain"
                        />
-                       <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-sm font-bold">
+                       <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs md:text-sm font-bold">
                          #{index + 1}
                        </div>
                      </div>
-                     <div className="p-4 text-center">
-                       <p className="text-gray-600 text-sm">
+                     <div className="p-3 md:p-4 text-center">
+                       <p className="text-gray-600 text-xs md:text-sm">
                          Face Swap Result {index + 1}
                        </p>
                      </div>
@@ -532,13 +539,13 @@ export default function FaceSwapPage({
                  <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                    <button
                      onClick={buyNow}
-                     className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg font-bold text-lg transition-colors shadow-lg"
+                     className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg"
                    >
                      🛒 Buy Now - {validTemplate.price}
                    </button>
                    <button
                      onClick={addToCart}
-                     className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg font-bold text-lg transition-colors shadow-lg"
+                     className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg"
                    >
                      ➕ Add to Cart & Keep Browsing
                    </button>
@@ -549,9 +556,11 @@ export default function FaceSwapPage({
                      setSwapFailures([]);
                      setSwapError(null);
                      setOutputFolderId(null);
+                     setShowSuccess(false);
+                     setHideUploadedImage(false);
                      setShowSwapButton(true);
                    }}
-                   className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                   className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95"
                  >
                    🔄 Try Another Photo
                  </button>

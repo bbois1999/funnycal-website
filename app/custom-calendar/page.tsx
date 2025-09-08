@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CALENDAR_MONTHS, productData, type Template } from "@/lib/products";
 
 type MonthSelection = {
@@ -34,6 +34,20 @@ export default function CustomCalendarBuilder() {
   const [isValidating, setIsValidating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<number, { kind: "face" | "template"; message: string }>>({});
   const [validationNotice, setValidationNotice] = useState<string | null>(null);
+  
+  // Animation states for smooth transitions
+  const [stepTransitioning, setStepTransitioning] = useState(false);
+  const [lastSelectedMonth, setLastSelectedMonth] = useState<number | null>(null);
+
+  // Clear last selected month animation after 2 seconds
+  useEffect(() => {
+    if (lastSelectedMonth !== null) {
+      const timer = setTimeout(() => {
+        setLastSelectedMonth(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastSelectedMonth]);
 
   // Face photo for swapping
   const faceFileInputRef = useRef<HTMLInputElement>(null);
@@ -106,13 +120,13 @@ export default function CustomCalendarBuilder() {
 
   const chooseTemplate = (templateKey: string) => {
     setWorkingSelectedTemplateKey(templateKey);
-    setWizardStep("chooseImage");
+    transitionToStep("chooseImage");
   };
 
   const chooseImage = (src: string) => {
     setWorkingSelectedImage(src);
     setWorkingSource("template");
-    setWizardStep("confirm");
+    transitionToStep("confirm");
   };
 
   const onUploadClick = () => fileInputRef.current?.click();
@@ -123,7 +137,7 @@ export default function CustomCalendarBuilder() {
     reader.onload = () => {
       setWorkingSelectedImage(reader.result as string);
       setWorkingSource("upload");
-      setWizardStep("confirm");
+      transitionToStep("confirm");
     };
     reader.readAsDataURL(file);
     // reset input for same file upload again
@@ -131,6 +145,15 @@ export default function CustomCalendarBuilder() {
   };
 
   const allChosen = selections.every((s) => s.imageSrc);
+
+  // Smooth step transition helper
+  const transitionToStep = (newStep: "chooseTemplate" | "chooseImage" | "confirm") => {
+    setStepTransitioning(true);
+    setTimeout(() => {
+      setWizardStep(newStep);
+      setStepTransitioning(false);
+    }, 150);
+  };
 
   const confirmSelection = () => {
     if (!workingSelectedImage) return;
@@ -145,6 +168,9 @@ export default function CustomCalendarBuilder() {
       return next;
     });
 
+    // Set last selected month for animation
+    setLastSelectedMonth(currentMonthIdx);
+
     // advance to next month or finish
     if (isFixingFailures && fixQueue.length > 0) {
       const nextPtr = fixPointer + 1;
@@ -154,7 +180,7 @@ export default function CustomCalendarBuilder() {
         setWorkingSelectedTemplateKey(null);
         setWorkingSelectedImage(null);
         setWorkingSource(null);
-        setWizardStep("chooseTemplate");
+        transitionToStep("chooseTemplate");
         setCurrentMonthIdx(nextIdx);
       } else {
         // Finished fixing; go to results stage again
@@ -167,7 +193,7 @@ export default function CustomCalendarBuilder() {
         setWorkingSelectedTemplateKey(null);
         setWorkingSelectedImage(null);
         setWorkingSource(null);
-        setWizardStep("chooseTemplate");
+        transitionToStep("chooseTemplate");
         setCurrentMonthIdx(nextIdx);
       } else {
         setIsComplete(true);
@@ -177,11 +203,11 @@ export default function CustomCalendarBuilder() {
 
   const goBack = () => {
     if (wizardStep === "confirm") {
-      setWizardStep("chooseImage");
+      transitionToStep("chooseImage");
       return;
     }
     if (wizardStep === "chooseImage") {
-      setWizardStep("chooseTemplate");
+      transitionToStep("chooseTemplate");
       return;
     }
     // At chooseTemplate, go back a month if possible
@@ -191,10 +217,10 @@ export default function CustomCalendarBuilder() {
       setCurrentMonthIdx(prevIdx);
       if (prevSel.templateKey) {
         setWorkingSelectedTemplateKey(prevSel.templateKey);
-        setWizardStep("chooseImage");
+        transitionToStep("chooseImage");
       } else {
         setWorkingSelectedTemplateKey(null);
-        setWizardStep("chooseTemplate");
+        transitionToStep("chooseTemplate");
       }
     }
   };
@@ -323,9 +349,9 @@ export default function CustomCalendarBuilder() {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
       {/* Header */}
       <header className="bg-white shadow-lg">
-        <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="max-w-6xl mx-auto px-4 py-4 md:py-6">
           <div className="flex items-center justify-between">
-            <Link href="/" className="text-3xl font-bold text-gray-800">
+            <Link href="/" className="text-2xl md:text-3xl font-bold text-gray-800">
               Funny<span className="text-orange-500">Cal</span>
             </Link>
             <nav className="hidden md:flex space-x-6">
@@ -361,7 +387,7 @@ export default function CustomCalendarBuilder() {
       </section>
 
       {/* Builder (Guided) */}
-      <section className="py-10 px-4">
+      <section className="py-6 md:py-10 px-4 pb-24">
         <div className="max-w-4xl mx-auto">
           {/* Progress */}
           <div className="mb-6 text-center">
@@ -380,7 +406,7 @@ export default function CustomCalendarBuilder() {
 
           {/* Quick month jump (previously chosen) */}
           <div className="mb-4">
-            <div className="flex flex-wrap gap-2 justify-center">
+            <div className="flex flex-wrap gap-1 md:gap-2 justify-center">
               {CALENDAR_MONTHS.map((label, idx) => {
                 const sel = selections[idx];
                 const isPast = isComplete || idx < currentMonthIdx || (idx === currentMonthIdx && wizardStep !== "chooseTemplate");
@@ -390,8 +416,8 @@ export default function CustomCalendarBuilder() {
                     key={label}
                     onClick={() => requestMonthChange(idx)}
                     disabled={!canJump}
-                    className={`px-2 py-1 rounded text-xs font-semibold border ${
-                      canJump ? "bg-white hover:bg-gray-50" : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    className={`px-2 py-1 rounded text-xs font-semibold border transition-all duration-200 transform ${
+                      canJump ? "bg-white hover:bg-gray-50 text-gray-800 hover:scale-105 active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"
                     }`}
                     title={canJump ? `Change ${label}` : `${label}`}
                   >
@@ -404,36 +430,36 @@ export default function CustomCalendarBuilder() {
 
           {!isComplete ? (
             <div className="bg-white rounded-xl shadow overflow-hidden">
-              <div className="px-5 py-4 border-b">
+              <div className="px-4 md:px-5 py-3 md:py-4 border-b">
                 {wizardStep === "chooseTemplate" && (
-                  <h2 className="text-xl font-bold text-gray-800">
+                  <h2 className="text-lg md:text-xl font-bold text-gray-800">
                     Pick a template for {CALENDAR_MONTHS[currentMonthIdx]}
                   </h2>
                 )}
                 {wizardStep === "chooseImage" && (
-                  <h2 className="text-xl font-bold text-gray-800 capitalize">
+                  <h2 className="text-lg md:text-xl font-bold text-gray-800 capitalize">
                     Pick a picture from {workingSelectedTemplateKey}
                   </h2>
                 )}
                 {wizardStep === "confirm" && (
-                  <h2 className="text-xl font-bold text-gray-800">Confirm your choice</h2>
+                  <h2 className="text-lg md:text-xl font-bold text-gray-800">Confirm your choice</h2>
                 )}
               </div>
 
               {/* Step content */}
-              <div className="p-5">
+              <div className="p-4 md:p-5">
                 {wizardStep === "chooseTemplate" && (
-                  <div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  <div className={`transition-opacity duration-300 ${stepTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
                       {/* Upload your own tile */}
                       <div className="relative">
                         <button
                           onClick={onUploadClick}
-                          className="w-full group relative rounded-lg border-2 border-dashed border-gray-300 hover:border-orange-400 bg-white transition overflow-hidden text-center flex flex-col items-center justify-center p-4"
+                          className="w-full group relative rounded-lg border-2 border-dashed border-gray-300 hover:border-orange-400 bg-white transition-all duration-200 transform hover:scale-105 active:scale-95 overflow-hidden text-center flex flex-col items-center justify-center p-3 md:p-4 aspect-[3/4]"
                         >
-                          <div className="text-3xl mb-2">📸</div>
-                          <div className="text-sm font-semibold text-gray-800">Upload your own</div>
-                          <div className="text-[11px] text-gray-500 mt-1">1500×2000px+ recommended</div>
+                          <div className="text-2xl md:text-3xl mb-1 md:mb-2">📸</div>
+                          <div className="text-xs md:text-sm font-semibold text-gray-800">Upload your own</div>
+                          <div className="text-[10px] md:text-[11px] text-gray-500 mt-1 hidden sm:block">1500×2000px+ recommended</div>
                         </button>
                         <input
                           ref={fileInputRef}
@@ -448,14 +474,14 @@ export default function CustomCalendarBuilder() {
                         <button
                           key={key}
                           onClick={() => chooseTemplate(key)}
-                          className="group relative rounded-lg border bg-white hover:shadow-md transition overflow-hidden text-left"
+                          className="group relative rounded-lg border bg-white hover:shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 overflow-hidden text-left"
                         >
                           <div className="relative w-full aspect-[3/4] bg-gray-100">
                             <Image src={getTemplateCover(tmpl)} alt={tmpl.name} fill className="object-cover" />
                           </div>
                           <div className="p-2">
-                            <div className="text-sm font-semibold text-gray-800 capitalize">{key}</div>
-                            <div className="text-xs text-gray-500 truncate">{tmpl.name}</div>
+                            <div className="text-xs md:text-sm font-semibold text-gray-800 capitalize">{key}</div>
+                            <div className="text-[10px] md:text-xs text-gray-500 truncate">{tmpl.name}</div>
                           </div>
                         </button>
                       ))}
@@ -464,16 +490,16 @@ export default function CustomCalendarBuilder() {
                 )}
 
                 {wizardStep === "chooseImage" && workingSelectedTemplateKey && (
-                  <div>
-                    <div className="mb-3 text-sm text-gray-600">
+                  <div className={`transition-opacity duration-300 ${stepTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+                    <div className="mb-3 text-xs md:text-sm text-gray-600">
                       Recommended upload: 1500×2000px or higher (portrait), clear, evenly lit face looking toward the camera.
-                      Avoid heavy sunglasses, extreme angles, or motion blur.
+                      <span className="hidden md:inline"> Avoid heavy sunglasses, extreme angles, or motion blur.</span>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
                       {/* Upload tile */}
                       <button
                         onClick={onUploadClick}
-                        className="relative aspect-[3/4] rounded-lg border-2 border-dashed border-gray-300 hover:border-orange-400 grid place-items-center text-gray-500 font-semibold"
+                        className="relative aspect-[3/4] rounded-lg border-2 border-dashed border-gray-300 hover:border-orange-400 grid place-items-center text-gray-500 font-semibold text-xs md:text-sm transition-all duration-200 transform hover:scale-105 active:scale-95"
                       >
                         Upload your own
                       </button>
@@ -488,7 +514,7 @@ export default function CustomCalendarBuilder() {
                         <button
                           key={src}
                           onClick={() => chooseImage(src)}
-                          className="relative w-full aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-orange-400"
+                          className="relative w-full aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-orange-400 transition-all duration-200 transform hover:scale-105 active:scale-95"
                         >
                           <Image src={src} alt="template" fill className="object-cover" />
                         </button>
@@ -498,7 +524,7 @@ export default function CustomCalendarBuilder() {
                 )}
 
                 {wizardStep === "confirm" && workingSelectedImage && (
-                  <div className="grid gap-4">
+                  <div className={`grid gap-4 transition-opacity duration-300 ${stepTransitioning ? 'opacity-0' : 'opacity-100'}`}>
                     <div className="relative w-full max-w-2xl mx-auto aspect-[4/5] bg-gray-100 rounded overflow-hidden">
                       {workingSelectedImage.startsWith("data:") ? (
                         <img src={workingSelectedImage} alt="Selected" className="w-full h-full object-contain" />
@@ -506,15 +532,16 @@ export default function CustomCalendarBuilder() {
                         <Image src={workingSelectedImage} alt="Selected" fill className="object-contain" />
                       )}
                     </div>
-                    <div className="mx-auto max-w-2xl text-sm text-gray-600">
-                      Please ensure the face is clearly visible and recognizable. We’ll attempt the swap and will notify you
-                      if any image fails automatic detection. If that happens, we’ll indicate whether you should replace the
-                      person photo (face not detected) or the chosen scene for this month (template incompatibility).
+                    <div className="mx-auto max-w-2xl text-xs md:text-sm text-gray-600 px-2">
+                      Please ensure the face is clearly visible and recognizable. We'll attempt the swap and will notify you
+                      if any image fails automatic detection.
+                      <span className="hidden md:inline"> If that happens, we'll indicate whether you should replace the
+                      person photo (face not detected) or the chosen scene for this month (template incompatibility).</span>
                     </div>
-                    <div className="flex items-center justify-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 md:gap-3">
                       <button
                         onClick={goBack}
-                        className="px-5 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold"
+                        className="w-full sm:w-auto px-4 md:px-5 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold text-sm md:text-base transition-all duration-200 transform hover:scale-105 active:scale-95"
                       >
                         Go back
                       </button>
@@ -524,15 +551,15 @@ export default function CustomCalendarBuilder() {
                           setWorkingSelectedTemplateKey(null);
                           setWorkingSelectedImage(null);
                           setWorkingSource(null);
-                          setWizardStep("chooseTemplate");
+                          transitionToStep("chooseTemplate");
                         }}
-                        className="px-5 py-2 rounded bg-white border hover:bg-gray-50 text-gray-800 font-semibold"
+                        className="w-full sm:w-auto px-4 md:px-5 py-2 rounded bg-white border hover:bg-gray-50 text-gray-800 font-semibold text-sm md:text-base transition-all duration-200 transform hover:scale-105 active:scale-95"
                       >
                         Change picture
                       </button>
                       <button
                         onClick={confirmSelection}
-                        className="px-6 py-2 rounded bg-orange-600 hover:bg-orange-700 text-white font-bold"
+                        className="w-full sm:w-auto px-4 md:px-6 py-2 rounded bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm md:text-base transition-all duration-200 transform hover:scale-105 active:scale-95"
                       >
                         Confirm {CALENDAR_MONTHS[currentMonthIdx]}
                       </button>
@@ -542,29 +569,29 @@ export default function CustomCalendarBuilder() {
               </div>
 
               {/* Bottom nav */}
-              <div className="px-5 py-4 border-t flex items-center justify-between bg-gray-50">
+              <div className="px-4 md:px-5 py-3 md:py-4 border-t flex items-center justify-between bg-gray-50">
                 <button
                   onClick={goBack}
-                  className="px-4 py-2 rounded bg-white border hover:bg-gray-100 text-gray-700 font-semibold"
+                  className="px-3 md:px-4 py-2 rounded bg-white border hover:bg-gray-100 text-gray-700 font-semibold text-sm md:text-base transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:transform-none disabled:opacity-50"
                   disabled={currentMonthIdx === 0 && wizardStep === "chooseTemplate"}
                 >
                   ← Back
                 </button>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs md:text-sm text-gray-600">
                   {selections.filter((s) => s.imageSrc).length} of 12 selected
                 </div>
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow p-8 text-center">
+            <div className="bg-white rounded-xl shadow p-4 md:p-8 text-center">
               {/* Results reveal at the top */
               }
               {swapResults.length > 0 && (
                 <div className={`transition-opacity duration-700 ${showResultsReveal ? 'opacity-100' : 'opacity-0'}`}>
-                  <div className="text-center mb-6">
-                    <div className="text-6xl mb-2">🎉</div>
-                    <h2 className="text-3xl font-extrabold text-gray-800 mb-1">Yay! Your swaps are ready</h2>
-                    <p className="text-gray-600">Check out your 12-month transformation below</p>
+                  <div className="text-center mb-4 md:mb-6">
+                    <div className="text-4xl md:text-6xl mb-2">🎉</div>
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-gray-800 mb-1">Yay! Your swaps are ready</h2>
+                    <p className="text-sm md:text-base text-gray-600">Check out your 12-month transformation below</p>
                   </div>
                   {swapFailures.length > 0 && (
                     <div className="max-w-3xl mx-auto mb-6">
@@ -608,21 +635,21 @@ export default function CustomCalendarBuilder() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <button onClick={startFixFailures} className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold">Fix Issues Now</button>
-                          <button onClick={backToSelections} className="px-4 py-2 rounded bg-white border border-amber-300 text-amber-800 font-semibold hover:bg-amber-50">Edit Selections</button>
+                          <button onClick={startFixFailures} className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95">Fix Issues Now</button>
+                          <button onClick={backToSelections} className="px-4 py-2 rounded bg-white border border-amber-300 text-amber-800 font-semibold hover:bg-amber-50 transition-all duration-200 transform hover:scale-105 active:scale-95">Edit Selections</button>
                         </div>
                       </div>
                     </div>
                   )}
                   <div className="mb-5 flex items-center justify-center gap-3">
-                    <button onClick={backToSelections} className="px-5 py-2 rounded bg-white border hover:bg-gray-50 text-gray-800 font-semibold">← Back to selections</button>
-                    <button onClick={addToCart} disabled={failedMonthIndices.length>0} className={`px-5 py-2 rounded font-bold ${failedMonthIndices.length>0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700 text-white'}`}>Add to Cart</button>
-                    <button onClick={buyNow} disabled={failedMonthIndices.length>0} className={`px-5 py-2 rounded font-bold ${failedMonthIndices.length>0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}`}>Buy Now</button>
+                    <button onClick={backToSelections} className="px-5 py-2 rounded bg-white border hover:bg-gray-50 text-gray-800 font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95">← Back to selections</button>
+                    <button onClick={addToCart} disabled={failedMonthIndices.length>0} className={`px-5 py-2 rounded font-bold transition-all duration-200 transform ${failedMonthIndices.length>0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700 text-white hover:scale-105 active:scale-95'}`}>Add to Cart</button>
+                    <button onClick={buyNow} disabled={failedMonthIndices.length>0} className={`px-5 py-2 rounded font-bold transition-all duration-200 transform ${failedMonthIndices.length>0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white hover:scale-105 active:scale-95'}`}>Buy Now</button>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-8">
                     {swapResults.map((src: string) => (
                       <div key={src} className="relative w-full aspect-[3/4] bg-gray-100 rounded overflow-hidden shadow">
-                        <Image src={src} alt="result" fill className="object-cover" />
+                        <Image src={src} alt="result" fill className="object-contain" />
                       </div>
                     ))}
                   </div>
@@ -632,30 +659,30 @@ export default function CustomCalendarBuilder() {
               {/* Face photo upload and action buttons are hidden once results exist */}
               {swapResults.length === 0 && (
                 <>
-                  <div className="max-w-md mx-auto mb-6">
-                    <div className="text-left mb-2 font-semibold text-gray-800">Upload your face photo</div>
-                    <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-4 bg-white">
+                  <div className="max-w-md mx-auto mb-4 md:mb-6 px-4">
+                    <div className="text-left mb-2 font-semibold text-gray-800 text-sm md:text-base">Upload your face photo</div>
+                    <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-3 md:p-4 bg-white">
                       <input ref={faceFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFaceUploadChange} />
                       {!facePreview ? (
-                        <button onClick={() => faceFileInputRef.current?.click()} className="w-full py-3 rounded bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold">
+                        <button onClick={() => faceFileInputRef.current?.click()} className="w-full py-3 rounded bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-sm md:text-base transition-all duration-200 transform hover:scale-105 active:scale-95">
                           Choose face photo
                         </button>
                       ) : (
-                        <div className="relative h-56">
+                        <div className="relative h-48 md:h-56">
                           <img src={facePreview} alt="Face" className="w-full h-full object-cover rounded" />
-                          <button onClick={() => faceFileInputRef.current?.click()} className="absolute bottom-2 right-2 px-3 py-1 rounded bg-white/90 border text-sm">
+                          <button onClick={() => faceFileInputRef.current?.click()} className="absolute bottom-2 right-2 px-2 md:px-3 py-1 rounded bg-white/90 border text-xs md:text-sm transition-all duration-200 transform hover:scale-105 active:scale-95">
                             Change
                           </button>
                         </div>
                       )}
-                      <div className="mt-2 text-xs text-gray-600">Tip: 1000×1000px+ square, clear face looking at camera.</div>
+                      <div className="mt-2 text-[10px] md:text-xs text-gray-600">Tip: 1000×1000px+ square, clear face looking at camera.</div>
                     </div>
                   </div>
                   {!isSwapping && (
                     <button
                       disabled={!allChosen || !faceFile}
                       onClick={handleContinueToFaceSwap}
-                      className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded font-bold disabled:opacity-60"
+                      className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 md:px-6 py-2 md:py-3 rounded font-bold disabled:opacity-60 text-sm md:text-base transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:transform-none"
                     >
                       Continue to Face Swap
                     </button>
@@ -704,6 +731,72 @@ export default function CustomCalendarBuilder() {
         </div>
       </section>
 
+      {/* Bottom Progress Window */}
+      {!isComplete && selections.some(s => s.imageSrc) && (
+        <div className="fixed bottom-2 md:bottom-4 left-2 md:left-4 right-2 md:right-4 z-40 max-w-6xl mx-auto">
+          <div className="bg-white rounded-lg shadow-xl border p-3 md:p-4 backdrop-blur-sm bg-white/95">
+            <div className="flex items-center justify-between mb-2 md:mb-3">
+              <h3 className="text-xs md:text-sm font-semibold text-gray-800 flex items-center gap-1 md:gap-2">
+                <span>📅</span>
+                <span className="hidden sm:inline">Calendar Progress</span>
+                <span className="sm:hidden">Progress</span>
+              </h3>
+              <div className="text-[10px] md:text-xs text-gray-600">
+                {selections.filter(s => s.imageSrc).length} / 12
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-6 sm:grid-cols-12 gap-1 md:gap-2">
+              {selections.map((selection, idx) => (
+                <div 
+                  key={idx} 
+                  className={`relative aspect-square rounded overflow-hidden transition-all duration-500 ${
+                    selection.imageSrc 
+                      ? `ring-1 md:ring-2 ${lastSelectedMonth === idx ? 'ring-green-400 scale-110' : 'ring-gray-300'}` 
+                      : 'bg-gray-100 border border-dashed border-gray-300'
+                  }`}
+                >
+                  {selection.imageSrc ? (
+                    <>
+                      {selection.imageSrc.startsWith("data:") ? (
+                        <img 
+                          src={selection.imageSrc} 
+                          alt={CALENDAR_MONTHS[idx]} 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <Image 
+                          src={selection.imageSrc} 
+                          alt={CALENDAR_MONTHS[idx]} 
+                          fill 
+                          className="object-cover" 
+                        />
+                      )}
+                      {lastSelectedMonth === idx && (
+                        <div className="absolute inset-0 bg-green-400/20 flex items-center justify-center">
+                          <div className="text-sm md:text-xl animate-bounce">✨</div>
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[8px] md:text-[10px] px-0.5 md:px-1 py-0.5 font-medium">
+                        {CALENDAR_MONTHS[idx].slice(0, 3)}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-[8px] md:text-xs text-gray-400 font-medium">
+                          {CALENDAR_MONTHS[idx].slice(0, 3)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Change dialog */}
       {showChangeDialog && targetMonthToChange != null && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
@@ -713,10 +806,10 @@ export default function CustomCalendarBuilder() {
               Your current in-progress month might not be saved. All previously selected months will remain the same.
             </p>
             <div className="flex items-center justify-end gap-2">
-              <button onClick={handleCancelChangeDialog} className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold">
+              <button onClick={handleCancelChangeDialog} className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95">
                 Cancel
               </button>
-              <button onClick={handleConfirmChangeDialog} className="px-4 py-2 rounded bg-orange-600 hover:bg-orange-700 text-white font-bold">
+              <button onClick={handleConfirmChangeDialog} className="px-4 py-2 rounded bg-orange-600 hover:bg-orange-700 text-white font-bold transition-all duration-200 transform hover:scale-105 active:scale-95">
                 Yes, change {CALENDAR_MONTHS[targetMonthToChange]}
               </button>
             </div>
