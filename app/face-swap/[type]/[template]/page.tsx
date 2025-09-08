@@ -218,6 +218,10 @@ export default function FaceSwapPage({
               setOutputFolderId(result.output_folder_id);
             }
             setShowSuccess(true);
+            // Smooth scroll to top to show success message
+            setTimeout(() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
           }, 300); // Wait for image fade out
         }, 300); // Small delay to show 100% completion
       } else {
@@ -300,7 +304,34 @@ export default function FaceSwapPage({
 
                      {/* Upload Section - Top */}
            <div className="max-w-2xl mx-auto mb-8 md:mb-16">
-             <div className="text-center">
+             
+             {/* Success Message - Positioned at Very Top */}
+             {swapResults.length > 0 && (
+               <div className={`mb-8 text-center transition-all duration-500 ${showSuccess ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4 md:p-6 shadow-lg">
+                   <div className="text-4xl md:text-6xl mb-4 animate-bounce">🎉</div>
+                   <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent mb-4">
+                     FACE SWAP COMPLETE!
+                   </h2>
+                   <div className="text-xl md:text-2xl mb-3">🎭 ⭐ 🔥 ⭐ 🎭</div>
+                   <p className="text-base md:text-lg text-gray-700 font-semibold mb-2">
+                     Your face has been magically swapped onto all {swapResults.length} templates!
+                   </p>
+                   <p className="text-sm md:text-base text-gray-600">
+                     Check out your hilarious {validTemplate.name} transformations below! ⬇️
+                   </p>
+                   <div className="flex justify-center space-x-2 text-xl md:text-2xl animate-bounce mt-4">
+                     <span className="animate-pulse">🚀</span>
+                     <span className="animate-pulse delay-100">💫</span>
+                     <span className="animate-pulse delay-200">🎊</span>
+                     <span className="animate-pulse delay-300">🌟</span>
+                     <span className="animate-pulse delay-500">🎈</span>
+                   </div>
+                 </div>
+               </div>
+             )}
+
+             <div className={`text-center transition-all duration-500 ${swapResults.length > 0 ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4 md:mb-6">Upload Your Photo</h2>
                
                {/* Upload Area */}
@@ -342,32 +373,6 @@ export default function FaceSwapPage({
                        />
                        <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full font-bold">
                          ✓ Uploaded
-                       </div>
-                     </div>
-                   </div>
-                 )}
-
-                 {/* Success Message - Positioned Above Chosen Face */}
-                 {swapResults.length > 0 && (
-                   <div className={`mt-8 text-center transition-opacity duration-500 ${showSuccess ? 'opacity-100' : 'opacity-0'}`}>
-                     <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4 md:p-6 shadow-lg">
-                       <div className="text-6xl mb-4 animate-bounce">🎉</div>
-                       <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent mb-4">
-                         FACE SWAP COMPLETE!
-                       </h2>
-                       <div className="text-2xl mb-3">🎭 ⭐ 🔥 ⭐ 🎭</div>
-                       <p className="text-lg text-gray-700 font-semibold mb-2">
-                         Your face has been magically swapped onto all {swapResults.length} templates!
-                       </p>
-                       <p className="text-gray-600">
-                         Check out your hilarious {validTemplate.name} transformations below! ⬇️
-                       </p>
-                       <div className="flex justify-center space-x-2 text-2xl animate-bounce mt-4">
-                         <span className="animate-pulse">🚀</span>
-                         <span className="animate-pulse delay-100">💫</span>
-                         <span className="animate-pulse delay-200">🎊</span>
-                         <span className="animate-pulse delay-300">🌟</span>
-                         <span className="animate-pulse delay-500">🎈</span>
                        </div>
                      </div>
                    </div>
