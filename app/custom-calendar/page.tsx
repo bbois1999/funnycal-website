@@ -243,6 +243,7 @@ export default function CustomCalendarBuilder() {
       setIsValidating(true);
       setSwapError(null);
       setSwapResults([]);
+      setSwapFailures([]);
 
       const monthsPayload = selections.map((s) => ({
         path: s.source === 'template' && typeof s.imageSrc === 'string' && !s.imageSrc.startsWith('data:') ? s.imageSrc : undefined,
@@ -568,11 +569,47 @@ export default function CustomCalendarBuilder() {
                   {swapFailures.length > 0 && (
                     <div className="max-w-3xl mx-auto mb-6">
                       <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
-                        <div className="font-semibold text-amber-800 mb-1">Some pictures failed</div>
-                        <p className="text-sm text-amber-800 mb-3">A few scenes couldn’t detect a clear face. Please replace {formatMonthList(failedMonthIndices)} with images that have a clear, forward-facing face.</p>
-                        <div className="mt-3 flex items-center gap-2">
-                          <button onClick={startFixFailures} className="px-3 py-1.5 rounded bg-white border text-gray-800 text-sm font-semibold hover:bg-gray-50">Fix months now</button>
-                          <button onClick={backToSelections} className="px-3 py-1.5 rounded bg-white border text-gray-800 text-sm font-semibold hover:bg-gray-50">Edit selections</button>
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="text-2xl">⚠️</div>
+                          <div>
+                            <div className="font-semibold text-amber-800">Face Detection Issues</div>
+                            <p className="text-sm text-amber-700">Some scenes couldn't detect a clear face for swapping</p>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2 mb-4 max-h-32 overflow-y-auto">
+                          {swapFailures.map((failure, index) => (
+                            <div key={index} className="bg-white border border-amber-200 rounded p-2 flex items-start gap-2">
+                              <div className="text-lg">
+                                {failure.reason === 'no_face_detected' ? '👤' : '❌'}
+                              </div>
+                              <div className="flex-1 text-sm">
+                                <div className="font-medium text-gray-800">
+                                  {failure.file === 'source' ? 'Your Face Photo' : 
+                                   failure.file.includes('.') ? `Month: ${failure.file}` : 
+                                   `${failure.file}`}
+                                </div>
+                                <div className="text-gray-600">{failure.message}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
+                          <div className="text-sm text-blue-800">
+                            <strong>💡 Tips for better face detection:</strong>
+                            <ul className="list-disc list-inside mt-1 space-y-1">
+                              <li>Use clear, forward-facing photos with good lighting</li>
+                              <li>Avoid sunglasses, masks, or anything covering the face</li>
+                              <li>Make sure the face takes up a good portion of the image</li>
+                              <li>Use high-quality images without blur</li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button onClick={startFixFailures} className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold">Fix Issues Now</button>
+                          <button onClick={backToSelections} className="px-4 py-2 rounded bg-white border border-amber-300 text-amber-800 font-semibold hover:bg-amber-50">Edit Selections</button>
                         </div>
                       </div>
                     </div>

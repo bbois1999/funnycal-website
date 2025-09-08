@@ -22,6 +22,7 @@ interface FaceSwapResult {
   watermarked_files?: string[];
   total_processed?: number;
   template_folder?: string;
+  failures?: Array<{ file: string; reason: string; message: string }>;
 }
 
 export async function POST(request: NextRequest) {
@@ -64,7 +65,10 @@ export async function POST(request: NextRequest) {
     const result = await runFaceSwap(filepath, templateFolder, outputDir);
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
+      return NextResponse.json({ 
+        error: result.error,
+        failures: result.failures || []
+      }, { status: 500 });
     }
 
     // Create API paths to serve the watermarked images for display
@@ -130,40 +134,45 @@ function runFaceSwap(sourcePath: string, templateFolder: string, outputDir: stri
     childProcess.on('close', (code) => {
       console.log(`Face swap process exited with code: ${code}`);
       
-      if (code === 0) {
-        // Try to parse success information from output
-        try {
-          // Look for output files in both output directory and watermarked subdirectory
-          const fs = require('fs');
-          const outputFiles = fs.readdirSync(outputDir)
-            .filter((file: string) => file.startsWith('swapped_'))
-            .map((file: string) => path.join(outputDir, file));
+      try {
+        // Read output files and detailed report
+        const fs = require('fs');
+        const outputFiles = fs.existsSync(outputDir)
+          ? fs.readdirSync(outputDir).filter((file: string) => file.startsWith('swapped_')).map((file: string) => path.join(outputDir, file))
+          : [];
 
-          const watermarkedDir = path.join(outputDir, 'watermarked');
-          let watermarkedFiles: string[] = [];
-          if (fs.existsSync(watermarkedDir)) {
-            watermarkedFiles = fs.readdirSync(watermarkedDir)
-              .filter((file: string) => file.startsWith('swapped_'))
-              .map((file: string) => path.join(watermarkedDir, file));
+        const watermarkedDir = path.join(outputDir, 'watermarked');
+        const watermarkedFiles = fs.existsSync(watermarkedDir)
+          ? fs.readdirSync(watermarkedDir).filter((file: string) => file.startsWith('swapped_')).map((file: string) => path.join(watermarkedDir, file))
+          : [];
+
+        // Attempt to read detailed report from Python script
+        let failures: Array<{ file: string; reason: string; message: string }> = [];
+        const reportPath = path.join(outputDir, 'report.json');
+        if (fs.existsSync(reportPath)) {
+          try {
+            const reportRaw = fs.readFileSync(reportPath, 'utf-8');
+            const report = JSON.parse(reportRaw);
+            if (Array.isArray(report.failures)) failures = report.failures;
+          } catch (reportError) {
+            console.error('Error reading report.json:', reportError);
           }
-
-          resolve({
-            success: true,
-            output_files: outputFiles,
-            watermarked_files: watermarkedFiles,
-            total_processed: outputFiles.length,
-            template_folder: templateFolder
-          });
-        } catch (e) {
-          resolve({
-            success: false,
-            error: 'Face swap completed but could not read output files'
-          });
         }
-      } else {
+
+        const success = code === 0 && outputFiles.length > 0;
+        resolve({
+          success,
+          output_files: outputFiles,
+          watermarked_files: watermarkedFiles,
+          total_processed: outputFiles.length,
+          template_folder: templateFolder,
+          failures,
+          ...(success ? {} : { error: errorOutput || 'Face swap process failed' })
+        });
+      } catch (e) {
         resolve({
           success: false,
-          error: errorOutput || 'Face swap process failed'
+          error: 'Face swap completed but could not read output files'
         });
       }
     });
