@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import Header from '../../components/Header'
 
 const calendars = [
   { key: 'swimsuit', title: 'Swimsuit Calendar', desc: 'Beach-ready laughs for every month.', image: '/template-images/swimsuit/1S.png' },
@@ -25,9 +26,9 @@ const customGridImages: string[] = [
 
 const tshirts = [
   {
-    key: 'einstein-shirt',
+    key: 'einstein',
     title: 'Einstein T‑Shirt',
-    desc: 'Einstein on a tee. Face-swap coming soon.',
+    desc: 'Put your face on the genius himself! Classic Einstein with your brilliant mind.',
     image: '/shirt-poster-pic-examples/realPreviewImageNoTongue.png', // shirt mockup
     thumbs: ['/shirt-poster-pic-examples/einsteinNormal.jpg', '/shirt-poster-pic-examples/exampleGary.png'],
   },
@@ -35,9 +36,9 @@ const tshirts = [
 
 const posters = [
   {
-    key: 'einstein-poster',
+    key: 'einstein',
     title: 'Einstein Poster',
-    desc: 'Classic Einstein print. Face-swap coming soon.',
+    desc: 'Put your face on the genius himself! Classic Einstein poster with your brilliant mind.',
     image: '/shirt-poster-pic-examples/einsteinNormal.jpg', // poster/main image
     thumbs: ['/shirt-poster-pic-examples/exampleGary.png'],
   },
@@ -49,17 +50,20 @@ const randomPicks = [
 
 export default function AllProductsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-orange-50 to-red-50 py-12 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-6">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-700 bg-white hover:bg-gray-50 px-3 py-2 rounded-lg shadow">
-            <span>←</span> <span>Back to Home</span>
-          </Link>
-        </div>
-        <div className="text-center mb-10">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-2">All Products</h1>
-          <p className="text-gray-600">Calendars now, shirts and posters coming soon.</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-orange-50 to-red-50">
+      <Header />
+      
+      <div className="py-12 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-6">
+            <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-700 bg-white hover:bg-gray-50 px-3 py-2 rounded-lg shadow transition-all duration-200 transform hover:scale-105">
+              <span>←</span> <span>Back to Home</span>
+            </Link>
+          </div>
+          <div className="text-center mb-10">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-2">All Products</h1>
+            <p className="text-gray-600">Hilarious face-swapped calendars, shirts, and posters!</p>
+          </div>
 
         {/* Calendars Section */}
         <section className="mb-12">
@@ -129,9 +133,9 @@ export default function AllProductsPage() {
                       ))}
                     </div>
                   )}
-                  <button className="bg-gray-200 text-gray-700 rounded px-3 py-2 text-sm" disabled>
-                    Coming soon
-                  </button>
+                  <Link href={`/product/shirt/${p.key}`} className="inline-block bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105">
+                    Customize
+                  </Link>
                 </div>
               </div>
             ))}
@@ -162,9 +166,9 @@ export default function AllProductsPage() {
                       ))}
                     </div>
                   )}
-                  <button className="bg-gray-200 text-gray-700 rounded px-3 py-2 text-sm" disabled>
-                    Coming soon
-                  </button>
+                  <Link href={`/product/poster/${p.key}`} className="inline-block bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105">
+                    Customize
+                  </Link>
                 </div>
               </div>
             ))}
@@ -189,6 +193,7 @@ export default function AllProductsPage() {
             ))}
           </div>
         </section>
+        </div>
       </div>
     </div>
   )

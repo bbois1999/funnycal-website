@@ -315,18 +315,21 @@ export default function ProductPage({
 
                              {/* CTA Buttons */}
                <div className="space-y-4">
-                 <Link
-                   href={`/face-swap/${params.type}/${params.template}`}
-                   className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white py-4 rounded-lg text-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-xl text-center block"
-                 >
-                   Try Face Swap Now - {validTemplate.price}
-                 </Link>
-                 <Link
-                   href={`/${params.type}-templates`}
-                   className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 py-3 rounded-lg font-semibold transition-colors duration-300 text-center block"
-                 >
-                   ← Back to {validProductType.title} Templates
-                 </Link>
+                <Link
+                  href={`/face-swap/${params.type}/${params.template}`}
+                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white py-4 rounded-lg text-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-xl text-center block"
+                >
+                  {params.type === 'calendar' ? 'Try Face Swap Now' : 
+                   params.type === 'shirt' ? 'Customize Your Shirt' :
+                   params.type === 'poster' ? 'Customize Your Poster' : 
+                   'Customize Now'} - {validTemplate.price}
+                </Link>
+                <Link
+                  href={params.type === 'calendar' ? `/calendar-templates` : `/${params.type}s`}
+                  className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 py-3 rounded-lg font-semibold transition-colors duration-300 text-center block"
+                >
+                  ← Back to {params.type === 'calendar' ? 'Calendar Templates' : `${validProductType.title}s`}
+                </Link>
                </div>
             </div>
           </div>

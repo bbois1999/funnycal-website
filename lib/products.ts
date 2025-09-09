@@ -259,7 +259,31 @@ export const productData: Record<string, ProductType> = {
     title: "T-Shirt",
     description: "Hilarious face-swapped t-shirts for maximum comedy impact",
     basePrice: 19.99,
-    templates: {},
+    templates: {
+      einstein: {
+        name: "Einstein T-Shirt",
+        description: "Put your face on the genius himself! Classic Einstein with your brilliant mind.",
+        price: "$19.99",
+        templateImages: ["einstein/swappedEinstein.png"],
+        exampleImages: ["/shirt-poster-pic-examples/exampleGary.png"],
+        features: ["High-quality print", "Cotton blend", "Multiple sizes", "Durable design", "Machine washable"],
+      },
+    },
+  },
+  poster: {
+    title: "Poster",
+    description: "Hilarious face-swapped posters for wall decoration comedy",
+    basePrice: 14.99,
+    templates: {
+      einstein: {
+        name: "Einstein Poster",
+        description: "Put your face on the genius himself! Classic Einstein poster with your brilliant mind.",
+        price: "$14.99",
+        templateImages: ["einstein/swappedEinstein.png"],
+        exampleImages: ["/shirt-poster-pic-examples/exampleGary.png"],
+        features: ["High-quality print", "11x17 inches", "Glossy finish", "Premium paper", "Ready to frame"],
+      },
+    },
   },
 };
 
